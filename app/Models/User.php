@@ -18,12 +18,13 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
-        'name',
         'email',
         'password',
         'role',
         'is_active',
-        'email_verified_at'
+        'email_verified_at',
+        'student_number',
+        'staff_number',
     ];
 
     /**
@@ -71,5 +72,25 @@ class User extends Authenticatable
     {
         return $this->hasOne(Staff::class);
     }
-    
+
+    public function getNameAttribute(): string
+    {
+        if ($this->relationLoaded('student') && $this->student?->name) {
+            return $this->student->name;
+        }
+
+        if ($this->relationLoaded('staff') && $this->staff?->name) {
+            return $this->staff->name;
+        }
+
+        if (!$this->relationLoaded('student') && $this->student?->name) {
+            return $this->student->name;
+        }
+
+        if (!$this->relationLoaded('staff') && $this->staff?->name) {
+            return $this->staff->name;
+        }
+
+        return strtok($this->email ?? 'User', '@') ?: 'User';
+    }
 }

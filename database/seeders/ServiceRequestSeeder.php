@@ -54,7 +54,7 @@ class ServiceRequestSeeder extends Seeder
 
             // Create service request
             ServiceRequest::create([
-                'student_id'      => $student->id,
+                'student_id'      => $student->student_number,
                 'office_id'       => $office->id,
                 'service_type_id' => $serviceType->id,
                 'description'     => $faker->sentence(10),

@@ -49,22 +49,24 @@ class StudentController extends Controller
 
         // 1️⃣ Create User
         $user = User::create([
-            'name'     => $request->name,
             'email'    => $request->email,
             'password' => Hash::make($request->password),
             'role'     => 'student', // ensure student role
         ]);
 
         // 2️⃣ Create Student linked to user
-        Student::create([
+        $student = Student::create([
+            'name'           => $request->name,
             'user_id'        => $user->id,
             'faculty'        => $request->faculty,
             'department'     => $request->department,
-            // Keep `program` aligned with department for legacy compatibility.
-            'program'        => $request->department,
             'campus'         => $request->campus,
             'phone'          => $request->phone,
             'student_number' => $request->student_number,
+        ]);
+
+        $user->update([
+            'student_number' => $student->student_number,
         ]);
 
         return redirect()->back()->with('success', 'Student created successfully.');
@@ -83,9 +85,8 @@ class StudentController extends Controller
             'phone'    => 'nullable|string|max:20',
         ]);
 
-        // Update User
+        // Update User (email/password only)
         $userData = [
-            'name'  => $request->name,
             'email' => $request->email,
         ];
 
@@ -97,9 +98,9 @@ class StudentController extends Controller
 
         // Update Student
         $student->update([
+            'name' => $request->name,
             'faculty' => $request->faculty,
             'department' => $request->department,
-            'program' => $request->department,
             'campus' => $request->campus,
             'phone'   => $request->phone,
         ]);

@@ -140,7 +140,10 @@
                                     <label class="form-label">Password</label>
                                     <div class="input-group">
                                         <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                                        <input type="password" name="password" class="form-control" required>
+                                        <input type="password" id="password" name="password" class="form-control" required>
+                                        <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
                                     </div>
                                 </div>
 
@@ -180,6 +183,17 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const passwordInput = document.getElementById('password');
+        const togglePassword = document.getElementById('togglePassword');
+        const togglePasswordIcon = togglePassword.querySelector('i');
+
+        togglePassword.addEventListener('click', function () {
+            const isHidden = passwordInput.type === 'password';
+            passwordInput.type = isHidden ? 'text' : 'password';
+            togglePasswordIcon.className = isHidden ? 'bi bi-eye-slash' : 'bi bi-eye';
+        });
+    </script>
 </body>
 
 </html>

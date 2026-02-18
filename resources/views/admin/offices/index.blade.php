@@ -28,6 +28,7 @@
                                 <tr class="nk-tb-item nk-tb-head">
                                     <th class="nk-tb-col">Name</th>
                                     <th class="nk-tb-col">Description</th>
+                                    <th class="nk-tb-col">Sub-offices</th>
                                     <th class="nk-tb-col">Number of Staff</th>
                                     <th class="nk-tb-col nk-tb-col-tools text-end">Actions</th>
                                 </tr>
@@ -37,6 +38,7 @@
                                 <tr class="nk-tb-item">
                                     <td class="nk-tb-col">{{ $office->name }}</td>
                                     <td class="nk-tb-col">{{ $office->description }}</td>
+                                    <td class="nk-tb-col">{{ $office->subOffices->pluck('name')->implode(', ') ?: 'None' }}</td>
                                     <td class="nk-tb-col">{{ $office->staff->count() }}</td>
                                     <td class="nk-tb-col nk-tb-col-tools">
                                         <ul class="nk-tb-actions gx-1">
@@ -51,7 +53,7 @@
                                                         <ul class="link-list-opt no-bdr">
                                                             <li>
                                                                 <a role="button" class="text-warning" data-bs-toggle="modal" data-bs-target="#officeModal"
-                                                                    onclick="editOffice({{ $office->id }}, '{{ $office->name }}', '{{ $office->description }}')">Edit</a>
+                                                                    onclick='editOffice(@json($office->id), @json($office->name), @json($office->description), @json($office->subOffices->pluck("name")->implode("\n")))'>Edit</a>
                                                             </li>
 
                                                             <li>
@@ -119,6 +121,10 @@
                         <input type="text" name="name" id="name" class="form-control" required>
                     </div>
                     <div class="mb-3">
+                        <label>Sub-offices (optional)</label>
+                        <input type="text" name="sub_offices" id="sub_offices" class="form-control" placeholder="Enter sub-office if any">
+                    </div>
+                    <div class="mb-3">
                         <label>Description</label>
                         <textarea name="description" id="description" class="form-control"></textarea>
                     </div>
@@ -138,13 +144,15 @@
         document.getElementById('method').value = 'POST';
         document.getElementById('name').value = '';
         document.getElementById('description').value = '';
+        document.getElementById('sub_offices').value = '';
     }
 
-    function editOffice(id, name, description) {
+    function editOffice(id, name, description, subOfficesText) {
         document.getElementById('officeForm').action = "/admin/offices/" + id;
         document.getElementById('method').value = 'PUT';
         document.getElementById('name').value = name;
         document.getElementById('description').value = description;
+        document.getElementById('sub_offices').value = subOfficesText || '';
     }
 </script>
 @endsection

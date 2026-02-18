@@ -27,10 +27,7 @@ class StaffRequestController extends Controller
                 }
 
                 if (filled($staff->department)) {
-                    $studentQuery->where(function ($q) use ($staff) {
-                        $q->where('department', $staff->department)
-                            ->orWhere('program', $staff->department);
-                    });
+                    $studentQuery->where('department', $staff->department);
                 }
             });
 
@@ -65,7 +62,7 @@ class StaffRequestController extends Controller
         }
 
         if (filled($staff->department)) {
-            $studentDepartment = optional($request->student)->department ?? optional($request->student)->program;
+            $studentDepartment = optional($request->student)->department;
             if ($studentDepartment !== $staff->department) {
                 abort(403);
             }

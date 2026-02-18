@@ -62,7 +62,7 @@ class ServiceRequest extends Model
 
     public function student()
     {
-        return $this->belongsTo(Student::class);
+        return $this->belongsTo(Student::class, 'student_id', 'student_number');
     }
     public function replies()
     {

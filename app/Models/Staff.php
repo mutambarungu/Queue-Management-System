@@ -9,8 +9,13 @@ class Staff extends Model
 {
     use HasFactory;
 
+    protected $primaryKey = 'staff_number';
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     protected $fillable = [
         'staff_number',
+        'name',
         'user_id',
         'office_id',
         'campus',
@@ -55,6 +60,11 @@ class Staff extends Model
     // Link to appointments
     public function appointments()
     {
-        return $this->hasMany(Appointment::class);
+        return $this->hasMany(Appointment::class, 'staff_number', 'staff_number');
+    }
+
+    public function getRouteKeyName()
+    {
+        return 'staff_number';
     }
 }

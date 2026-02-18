@@ -48,7 +48,7 @@ class DashboardController extends Controller
 
             case 'student':
                 // Only own requests
-                $requestsQuery->where('student_id', $user->student->id);
+                $requestsQuery->where('student_id', $user->student->student_number);
                 break;
         }
 
@@ -86,7 +86,7 @@ class DashboardController extends Controller
             'requests' => function ($query) use ($user) {
 
                 if ($user->role === 'student') {
-                    $query->where('student_id', $user->student->id);
+                    $query->where('student_id', $user->student->student_number);
                 }
 
                 if ($user->role === 'staff') {

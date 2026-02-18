@@ -12,7 +12,7 @@ class Appointment extends Model
         'appointment_time',
         'location',
         'status',
-        'staff_id',
+        'staff_number',
     ];
 
     public function serviceRequest()
@@ -22,6 +22,6 @@ class Appointment extends Model
 
     public function staff()
     {
-        return $this->belongsTo(Staff::class);
+        return $this->belongsTo(Staff::class, 'staff_number', 'staff_number');
     }
 }

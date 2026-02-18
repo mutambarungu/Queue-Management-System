@@ -22,13 +22,12 @@ class AdminUsercontroller extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name' => 'required|string',
+            'name' => 'nullable|string',
             'email' => 'required|email|unique:users',
             'role' => 'required|in:staff,admin',
         ]);
 
         User::create([
-            'name' => $request->name,
             'email' => $request->email,
             'role' => $request->role,
             'password' => bcrypt(Str::random(10)), // temporary password

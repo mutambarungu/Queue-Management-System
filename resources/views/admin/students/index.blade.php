@@ -44,10 +44,8 @@
                                     <th class="nk-tb-col">Student No</th>
                                     <th class="nk-tb-col">Name</th>
                                     <th class="nk-tb-col">Email</th>
-                                    <th class="nk-tb-col">Faculty</th>
                                     <th class="nk-tb-col">Department</th>
                                     <th class="nk-tb-col">Campus</th>
-                                    <th class="nk-tb-col">Phone</th>
                                     <th class="nk-tb-col nk-tb-col-tools text-end">Actions</th>
                                 </tr>
                             </thead>
@@ -56,12 +54,10 @@
                                 @foreach($students as $s)
                                 <tr class="nk-tb-item">
                                     <td class="nk-tb-col">{{ $s->student_number }}</td>
-                                    <td class="nk-tb-col">{{ $s->user->name }}</td>
+                                    <td class="nk-tb-col">{{ $s->name ?? 'N/A' }}</td>
                                     <td class="nk-tb-col">{{ $s->user->email }}</td>
-                                    <td class="nk-tb-col">{{ $s->faculty ?? 'N/A' }}</td>
-                                    <td class="nk-tb-col">{{ $s->department ?? $s->program ?? 'N/A' }}</td>
+                                    <td class="nk-tb-col">{{ $s->department ?? 'N/A' }}</td>
                                     <td class="nk-tb-col">{{ $s->campus ?? 'N/A' }}</td>
-                                    <td class="nk-tb-col">{{ $s->phone }}</td>
                                     <td class="nk-tb-col nk-tb-col-tools">
                                         <ul class="nk-tb-actions gx-1">
                                             <li>
@@ -73,10 +69,10 @@
                                                         <ul class="link-list-opt no-bdr">
                                                             <li>
                                                                 <a role="button" class="text-warning" data-bs-toggle="modal" data-bs-target="#studentModal"
-                                                                    onclick="editStudent({{ $s->id }}, '{{ $s->user->name }}', '{{ $s->user->email }}', '{{ $s->faculty }}', '{{ $s->department ?? $s->program }}', '{{ $s->campus }}', '{{ $s->phone }}')">Edit</a>
+                                                                    onclick="editStudent('{{ $s->getRouteKey() }}', '{{ $s->name }}', '{{ $s->user->email }}', '{{ $s->faculty }}', '{{ $s->department }}', '{{ $s->campus }}', '{{ $s->phone }}')">Edit</a>
                                                             </li>
                                                             <li>
-                                                                <a role="button" class="text-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ $s->id }}">Delete</a>
+                                                                <a role="button" class="text-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ str_replace('/', '__', $s->student_number) }}">Delete</a>
                                                             </li>
                                                         </ul>
                                                     </div>
@@ -98,7 +94,7 @@
 
 <!-- Delete Modal -->
 @foreach($students as $s)
-<div class="modal fade" id="deleteModal{{ $s->id }}">
+<div class="modal fade" id="deleteModal{{ str_replace('/', '__', $s->student_number) }}">
     <div class="modal-dialog">
         <div class="modal-content">
             <form method="POST" action="{{ route('admin.students.destroy',$s) }}" class="d-inline">
@@ -263,7 +259,8 @@ const departmentsByFaculty = {
     'Faculty of Computing and Information Sciences': [
         'Software Engineering',
         'Information Systems & Management',
-        'Information Technology'
+        'Information Technology',
+        'IT-Multimedia'
     ]
 };
 

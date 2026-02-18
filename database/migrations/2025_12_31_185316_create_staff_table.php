@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('staff', function (Blueprint $table) {
-            $table->id();
-            $table->string('staff_number')->unique();
+            $table->string('staff_number')->primary();
+            $table->string('name');
 
             // Link to users table
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');

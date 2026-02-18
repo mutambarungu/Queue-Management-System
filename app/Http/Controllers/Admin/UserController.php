@@ -16,7 +16,7 @@ class UserController extends Controller
 {
     public function index()
     {
-        $users = User::all();
+        $users = User::with(['student', 'staff'])->get();
         $offices = Office::all();
         return view('admin.users.index', compact('users', 'offices'));
     }
@@ -24,14 +24,14 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'role' => 'required|in:student,staff,admin',
             'password' => 'required|string|min:6|confirmed',
         ]);
 
         if ($validated['role'] === 'student') {
-            $request->validate([
+            $studentData = $request->validate([
+                'name' => 'required|string|max:255',
                 'student_number' => [
                     'required',
                     'string',
@@ -54,7 +54,8 @@ class UserController extends Controller
         }
 
         if ($validated['role'] === 'staff') {
-            $request->validate([
+            $staffData = $request->validate([
+                'name' => 'required|string|max:255',
                 'office_id' => 'nullable|exists:offices,id',
                 'position' => 'nullable|string|max:255',
                 'campus' => 'nullable|string|max:255',
@@ -65,27 +66,30 @@ class UserController extends Controller
         }
 
         $user = User::create([
-            'name' => $validated['name'],
             'email' => $validated['email'],
             'role' => $validated['role'],
             'password' => Hash::make($validated['password']),
         ]);
 
         if ($validated['role'] === 'student') {
-            Student::create([
+            $student = Student::create([
+                'name' => $studentData['name'],
                 'user_id' => $user->id,
-                'student_number' => $request->student_number,
-                'faculty' => $request->faculty,
-                'department' => $request->department,
-                // Keep aligned for legacy code paths.
-                'program' => $request->department,
-                'campus' => $request->campus,
-                'phone' => $request->phone,
+                'student_number' => $studentData['student_number'],
+                'faculty' => $studentData['faculty'],
+                'department' => $studentData['department'],
+                'campus' => $studentData['campus'],
+                'phone' => $studentData['phone'],
+            ]);
+
+            $user->update([
+                'student_number' => $student->student_number,
+                'staff_number' => null,
             ]);
         }
 
         if ($validated['role'] === 'staff') {
-            $office = $request->filled('office_id') ? Office::find($request->office_id) : null;
+            $office = filled($staffData['office_id'] ?? null) ? Office::find($staffData['office_id']) : null;
             $isStudentAffairs = $office && str_contains(strtolower($office->name), 'student affairs');
 
             if ($isStudentAffairs) {
@@ -95,14 +99,20 @@ class UserController extends Controller
                 ]);
             }
 
-            Staff::create([
+            $staff = Staff::create([
+                'name' => $staffData['name'],
                 'user_id' => $user->id,
-                'office_id' => $request->office_id,
-                'position' => $request->position,
-                'campus' => $request->campus,
-                'phone' => $request->phone,
-                'faculty' => $isStudentAffairs ? $request->faculty : null,
-                'department' => $isStudentAffairs ? $request->department : null,
+                'office_id' => $staffData['office_id'] ?? null,
+                'position' => $staffData['position'] ?? null,
+                'campus' => $staffData['campus'] ?? null,
+                'phone' => $staffData['phone'] ?? null,
+                'faculty' => $isStudentAffairs ? ($staffData['faculty'] ?? null) : null,
+                'department' => $isStudentAffairs ? ($staffData['department'] ?? null) : null,
+            ]);
+
+            $user->update([
+                'staff_number' => $staff->staff_number,
+                'student_number' => null,
             ]);
         }
 
@@ -111,20 +121,44 @@ class UserController extends Controller
 
     public function update(Request $request, User $user)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
+        $validated = $request->validate([
             'email' => "required|email|unique:users,email,{$user->id}",
             'role' => 'required|in:student,staff,admin',
             'password' => 'nullable|string|min:6|confirmed',
         ]);
 
-        $user->name = $request->name;
-        $user->email = $request->email;
-        $user->role = $request->role;
-        if ($request->password) {
-            $user->password = Hash::make($request->password);
+        $user->email = $validated['email'];
+        $user->role = $validated['role'];
+        if (!empty($validated['password'])) {
+            $user->password = Hash::make($validated['password']);
         }
         $user->save();
+
+        if ($user->student) {
+            $studentValidated = $request->validate([
+                'name' => 'required|string|max:255',
+            ]);
+
+            $user->student->update([
+                'name' => $studentValidated['name'],
+            ]);
+            $user->update([
+                'student_number' => $user->student->student_number,
+            ]);
+        }
+
+        if ($user->staff) {
+            $staffValidated = $request->validate([
+                'name' => 'required|string|max:255',
+            ]);
+
+            $user->staff->update([
+                'name' => $staffValidated['name'],
+            ]);
+            $user->update([
+                'staff_number' => $user->staff->staff_number,
+            ]);
+        }
 
         return redirect()->back()->with('success', 'User updated successfully.');
     }

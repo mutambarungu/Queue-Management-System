@@ -26,7 +26,7 @@ class ServiceRequestController extends Controller
         }
 
         $requests = ServiceRequest::with(['office', 'serviceType'])
-            ->where('student_id', $student->id)
+            ->where('student_id', $student->student_number)
             ->latest()
             ->paginate(10);
 
@@ -48,7 +48,7 @@ class ServiceRequestController extends Controller
             'attachments.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120'
         ]);
 
-        $studentId = Auth::user()->student->id;
+        $studentId = Auth::user()->student->student_number;
 
         $serviceRequest = ServiceRequest::create([
             'student_id' => $studentId,

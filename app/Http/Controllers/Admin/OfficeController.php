@@ -13,7 +13,7 @@ class OfficeController extends Controller
 {
     public function index()
     {
-        $offices = Office::with('staff')->get();
+        $offices = Office::with(['staff', 'subOffices'])->get();
 
         return view('admin.offices.index', compact('offices'));
     }
@@ -23,9 +23,11 @@ class OfficeController extends Controller
         $request->validate([
             'name' => 'required|unique:offices,name',
             'description' => 'nullable|string',
+            'sub_offices' => 'nullable|string',
         ]);
 
-        Office::create($request->only('name', 'description'));
+        $office = Office::create($request->only('name', 'description'));
+        $this->syncSubOffices($office, $request->input('sub_offices'));
 
         return redirect()->back()->with('success', 'Office created successfully.');
     }
@@ -35,10 +37,28 @@ class OfficeController extends Controller
         $request->validate([
             'name' => 'required|unique:offices,name,' . $office->id,
             'description' => 'nullable|string',
+            'sub_offices' => 'nullable|string',
         ]);
 
         $office->update($request->only('name', 'description'));
+        $this->syncSubOffices($office, $request->input('sub_offices'));
         return redirect()->back()->with('success', 'Office updated successfully.');
+    }
+
+    private function syncSubOffices(Office $office, ?string $subOfficesText): void
+    {
+        $lines = preg_split('/\r\n|\r|\n|,/', (string) $subOfficesText) ?: [];
+        $names = collect($lines)
+            ->map(fn($line) => trim($line))
+            ->filter()
+            ->unique(fn($line) => strtolower($line))
+            ->values();
+
+        $office->subOffices()->delete();
+
+        foreach ($names as $name) {
+            $office->subOffices()->create(['name' => $name]);
+        }
     }
 
     public function destroy(Office $office)

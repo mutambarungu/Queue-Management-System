@@ -12,8 +12,8 @@ class ServiceTypeController extends Controller
 {
     public function index()
     {
-        $serviceTypes = ServiceType::with('office')->latest()->get();
-        $offices = Office::all();
+        $serviceTypes = ServiceType::with(['office', 'subOffice'])->latest()->get();
+        $offices = Office::with('subOffices')->get();
 
         return view('admin.service-types.index', compact('serviceTypes', 'offices'));
     }
@@ -22,18 +22,28 @@ class ServiceTypeController extends Controller
     {
         $request->validate([
             'office_id' => 'required|exists:offices,id',
+            'sub_office_id' => [
+                'nullable',
+                Rule::exists('office_sub_offices', 'id')->where(fn($query) => $query->where('office_id', $request->office_id)),
+            ],
             'name' => [
                 'required',
                 'string',
                 'max:255',
                 Rule::unique('service_types')
-                    ->where('office_id', $request->office_id),
+                    ->where(fn($query) => $query
+                        ->where('office_id', $request->office_id)
+                        ->where('sub_office_id', $request->sub_office_id)),
             ],
         ]);
 
         $name = trim(ucwords(strtolower($request->name)));
 
-        ServiceType::create($request->only('office_id', 'name'));
+        ServiceType::create([
+            'office_id' => $request->office_id,
+            'sub_office_id' => $request->sub_office_id,
+            'name' => $name,
+        ]);
 
         return back()->with('success', 'Service type created successfully.');
     }
@@ -42,19 +52,29 @@ class ServiceTypeController extends Controller
     {
         $request->validate([
             'office_id' => 'required|exists:offices,id',
+            'sub_office_id' => [
+                'nullable',
+                Rule::exists('office_sub_offices', 'id')->where(fn($query) => $query->where('office_id', $request->office_id)),
+            ],
             'name' => [
                 'required',
                 'string',
                 'max:255',
                 Rule::unique('service_types')
-                    ->where('office_id', $request->office_id)
+                    ->where(fn($query) => $query
+                        ->where('office_id', $request->office_id)
+                        ->where('sub_office_id', $request->sub_office_id))
                     ->ignore($serviceType->id),
             ],
         ]);
 
         $name = trim(ucwords(strtolower($request->name)));
 
-        $serviceType->update($request->only('office_id', 'name'));
+        $serviceType->update([
+            'office_id' => $request->office_id,
+            'sub_office_id' => $request->sub_office_id,
+            'name' => $name,
+        ]);
 
         return back()->with('success', 'Service type updated successfully.');
     }

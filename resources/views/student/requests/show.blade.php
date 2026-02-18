@@ -107,7 +107,7 @@
                                 <div class="col">
                                     <div class="rounded-3 p-2 h-100">
                                         <small class="text-muted d-block">Department</small>
-                                        <span class="fw-semibold">{{ $student->program ?? 'N/A' }}</span>
+                                        <span class="fw-semibold">{{ $student->department ?? 'N/A' }}</span>
                                     </div>
                                 </div>
                             </div>

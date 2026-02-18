@@ -78,7 +78,6 @@ class StaffSeeder extends Seeder
             $user = User::updateOrCreate(
                 ['email' => $data['email']],
                 [
-                    'name' => $data['name'],
                     'password' => Hash::make('password'),
                     'role' => $data['role'],
                     'email_verified_at' => now(),
@@ -90,11 +89,17 @@ class StaffSeeder extends Seeder
                 ['user_id' => $user->id],
                 [
                     'staff_number' => 'STF-' . date('Y') . '-' . str_pad($user->id, 4, '0', STR_PAD_LEFT),
+                    'name' => $data['name'],
                     'office_id' => $data['office_id'],
                     'position' => $data['position'],
                     'phone' => $data['phone'],
                 ]
             );
+
+            $user->update([
+                'staff_number' => $user->staff?->staff_number,
+                'student_number' => null,
+            ]);
         }
     }
 }

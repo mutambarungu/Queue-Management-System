@@ -41,7 +41,7 @@ class AppointmentController extends Controller
     {
         $student = auth()->user()->student;
 
-        if (!$student || $appointment->serviceRequest->student_id !== $student->id) {
+        if (!$student || $appointment->serviceRequest->student_id !== $student->student_number) {
             abort(403, 'Unauthorized access.');
         }
 
@@ -93,7 +93,7 @@ class AppointmentController extends Controller
         DB::transaction(function () use ($validated, $staff, $serviceRequest) {
 
             // 🔒 Prevent double booking (same staff + date + time)
-            $exists = Appointment::where('staff_id', $staff->id)
+            $exists = Appointment::where('staff_number', $staff->staff_number)
                 ->where('appointment_date', $validated['appointment_date'])
                 ->where('appointment_time', $validated['appointment_time'])
                 ->lockForUpdate()
@@ -106,7 +106,7 @@ class AppointmentController extends Controller
             // Create appointment
             Appointment::create([
                 'service_request_id' => $serviceRequest->id,
-                'staff_id'           => $staff->id,
+                'staff_number'       => $staff->staff_number,
                 'appointment_date'   => $validated['appointment_date'],
                 'appointment_time'   => $validated['appointment_time'],
                 'location'           => $validated['location'],
@@ -131,7 +131,7 @@ class AppointmentController extends Controller
         $filter = $request->query('filter', 'all');
 
         $appointmentsQuery = Appointment::with(['serviceRequest.student.user', 'staff.user', 'staff.office'])
-            ->where('staff_id', $staff->id);
+            ->where('staff_number', $staff->staff_number);
 
         if ($filter === 'today') {
             $appointmentsQuery->whereDate('appointment_date', now()->toDateString());
@@ -154,7 +154,7 @@ class AppointmentController extends Controller
         $student = auth()->user()->student;
         $appointments = Appointment::with(['serviceRequest.serviceType', 'staff.user'])
             ->whereHas('serviceRequest', function ($query) use ($student) {
-                $query->where('student_id', $student->id);
+                $query->where('student_id', $student->student_number);
             })
             ->orderBy('appointment_date')
             ->orderBy('appointment_time')

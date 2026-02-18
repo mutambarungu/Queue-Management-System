@@ -15,8 +15,10 @@ return new class extends Migration
             $table->id();
             $table->string('request_number')->unique();
 
-            $table->foreignId('student_id')
-                ->constrained('students')
+            $table->string('student_id');
+            $table->foreign('student_id')
+                ->references('student_number')
+                ->on('students')
                 ->cascadeOnDelete();
 
             $table->foreignId('office_id')->constrained('offices');

@@ -19,8 +19,11 @@
             <select name="status" class="form-select">
                 <option value="">All Status</option>
                 <option>Submitted</option>
-                <option>In Progress</option>
-                <option>Completed</option>
+                <option>In Review</option>
+                <option>Awaiting Student Response</option>
+                <option>Appointment Scheduled</option>
+                <option>Resolved</option>
+                <option>Closed</option>
             </select>
         </div>
 
@@ -53,7 +56,7 @@
         <thead>
             <tr class="nk-tb-item nk-tb-head">
                 <th class="nk-tb-col">#</th>
-                <th class="nk-tb-col">Student</th>
+                <th class="nk-tb-col">Student ID</th>
                 <th class="nk-tb-col">Office</th>
                 <th class="nk-tb-col">Service</th>
                 <th class="nk-tb-col">Status</th>
@@ -64,7 +67,11 @@
             @foreach($requests as $key => $req)
             <tr class="nk-tb-item">
                 <td class="nk-tb-col">{{ $key + 1 }}</td>
-                <td class="nk-tb-col">{{ $req->student->user->name }}</td>
+                <td class="nk-tb-col">
+                    <span title="{{ $req->student->name ?? 'No profile name' }}">
+                        {{ $req->student->student_number ?? 'N/A' }}
+                    </span>
+                </td>
                 <td class="nk-tb-col">{{ $req->office->name }}</td>
                 <td class="nk-tb-col">{{ $req->serviceType->name }}</td>
                 <td class="nk-tb-col">{{ $req->status }}</td>

@@ -5,7 +5,7 @@
 @php
 $student = auth()->user()->student;
 $selectedFaculty = old('faculty', $student->faculty ?? '');
-$selectedDepartment = old('department', $student->department ?? $student->program ?? '');
+$selectedDepartment = old('department', $student->department ?? '');
 $selectedCampus = old('campus', $student->campus ?? '');
 @endphp
 
@@ -143,7 +143,8 @@ document.addEventListener('DOMContentLoaded', function() {
         'Faculty of Computing and Information Sciences': [
             'Software Engineering',
             'Information Systems & Management',
-            'Information Technology'
+            'Information Technology',
+            'IT-Multimedia'
         ]
     };
 

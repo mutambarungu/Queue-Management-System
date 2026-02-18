@@ -63,18 +63,20 @@ class RegisteredUserController extends Controller
 
             // 1. Create User
             $user = User::create([
-                'name' => $request->name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
             ]);
 
             // 2. Auto-create Student linked to User
-            Student::create([
+            $student = Student::create([
+                'name'           => $request->name,
                 'user_id'        => $user->id,
                 'student_number' => $request->student_number, // or leave null to auto-generate
-                'program'        => null,
-                'level'          => null,
                 'phone'          => null,
+            ]);
+
+            $user->update([
+                'student_number' => $student->student_number,
             ]);
         });
 

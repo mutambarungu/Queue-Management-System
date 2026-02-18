@@ -1,6 +1,27 @@
 @extends('layouts.app')
 @section('title', 'User Management')
 @section('content')
+<style>
+    .profile-id-hover {
+        position: relative;
+        cursor: help;
+    }
+
+    .profile-id-hover:hover::after {
+        content: attr(data-name);
+        position: absolute;
+        left: 50%;
+        bottom: 125%;
+        transform: translateX(-50%);
+        white-space: nowrap;
+        background: #111827;
+        color: #fff;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        z-index: 1000;
+    }
+    </style>
 
 <div class="container-fluid">
     <div class="nk-content-inner">
@@ -25,7 +46,7 @@
                             data-auto-responsive="true">
                             <thead>
                                 <tr class="nk-tb-item nk-tb-head">
-                                    <th class="nk-tb-col">Name</th>
+                                    <th class="nk-tb-col">Profile ID</th>
                                     <th class="nk-tb-col">Email</th>
                                     <th class="nk-tb-col">Verified</th>
                                     <th class="nk-tb-col">Role</th>
@@ -35,8 +56,26 @@
                             </thead>
                             <tbody>
                                 @foreach($users as $user)
+                                @php
+                                    $profileId = 'N/A';
+                                    $profileName = '';
+
+                                    if ($user->role === 'student') {
+                                        $profileId = $user->student?->student_number ?? $user->student_number ?? 'N/A';
+                                        $profileName = $user->student?->name ?? $user->name ?? '';
+                                    } elseif ($user->role === 'staff') {
+                                        $profileId = $user->staff?->staff_number ?? $user->staff_number ?? 'N/A';
+                                        $profileName = $user->staff?->name ?? $user->name ?? '';
+                                    }
+                                @endphp
                                 <tr class="nk-tb-item">
-                                    <td class="nk-tb-col">{{ $user->name }}</td>
+                                    <td class="nk-tb-col">
+                                        <span
+                                            class="profile-id-hover"
+                                            title="{{ $profileName ?: 'No profile name' }}"
+                                            data-name="{{ $profileName ?: 'No profile name' }}"
+                                        >{{ $profileId }}</span>
+                                    </td>
                                     <td class="nk-tb-col">{{ $user->email }}</td>
                                     <td class="nk-tb-col">
                                         @if($user->email_verified_at)
@@ -66,7 +105,7 @@
                                                         <ul class="link-list-opt no-bdr">
                                                             <li>
                                                                 <a role="button" class="text-warning" data-bs-toggle="modal" data-bs-target="#userModal"
-                                                                    onclick="editUser({{ $user->id }}, '{{ $user->name }}', '{{ $user->email }}', '{{ $user->role }}')">Edit</a>
+                                                                    onclick='editUser(@json($user->id), @json($profileName), @json($user->email), @json($user->role))'>Edit</a>
                                                             </li>
                                                             @if(!$user->email_verified_at)
                                                             <li>
@@ -117,6 +156,9 @@
     </div>
 </div>
 @foreach($users as $user)
+@php
+    $profileName = $user->student?->name ?? $user->staff?->name ?? '';
+@endphp
 <div class="modal fade" id="verifyUserModal{{ $user->id }}" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -133,7 +175,7 @@
                     Are you sure you want to verify this user?
                 </p>
 
-                <h6 class="fw-bold">{{ $user->name }}</h6>
+                <h6 class="fw-bold">{{ $profileName ?: 'No profile name' }}</h6>
                 <small class="text-muted">{{ $user->email }}</small>
             </div>
 
@@ -168,7 +210,7 @@
             <div class="modal-body">
                 Are you sure you want to
                 <strong>{{ $user->is_active ? 'disable' : 'enable' }}</strong>
-                {{ $user->name }}?
+                {{ $profileName ?: $user->email }}?
             </div>
 
             <div class="modal-footer">
@@ -226,7 +268,7 @@
             </div>
 
             <div class="modal-body">
-                Are you sure you want to delete user <strong>{{ $user->name }}</strong>? This action cannot be undone.
+                Are you sure you want to delete user <strong>{{ $profileName ?: $user->email }}</strong>? This action cannot be undone.
             </div>
             <div class="modal-footer">
                 <form method="POST"
@@ -257,7 +299,7 @@
                 <div class="modal-body">
                     <input type="hidden" name="_method" id="method" value="POST">
                     <div class="mb-3">
-                        <label>Name</label>
+                        <label>Profile Name</label>
                         <input type="text" name="name" id="name" class="form-control" required>
                     </div>
                     <div class="mb-3">
@@ -402,7 +444,8 @@
         'Faculty of Computing and Information Sciences': [
             'Software Engineering',
             'Information Systems & Management',
-            'Information Technology'
+            'Information Technology',
+            'IT-Multimedia'
         ]
     };
 
@@ -480,6 +523,12 @@
         document.getElementById('student_faculty').required = role === 'student';
         document.getElementById('student_department').required = role === 'student';
         document.getElementById('student_campus').required = role === 'student';
+        document.getElementById('name').required = role === 'student' || role === 'staff';
+        document.getElementById('name').disabled = role === 'admin';
+
+        if (role === 'admin') {
+            document.getElementById('name').value = '';
+        }
 
         if (role === 'student') {
             populateDepartments(document.getElementById('student_faculty').value, 'student_department', document.getElementById('student_department').value);
@@ -511,10 +560,10 @@
         applyRoleFields();
     }
 
-    function editUser(id, name, email, role) {
+    function editUser(id, profileName, email, role) {
         document.getElementById('userForm').action = "/admin/users/" + id;
         document.getElementById('method').value = 'PUT';
-        document.getElementById('name').value = name;
+        document.getElementById('name').value = profileName || '';
         document.getElementById('email').value = email;
         document.getElementById('role').value = role;
         document.getElementById('password').required = false;

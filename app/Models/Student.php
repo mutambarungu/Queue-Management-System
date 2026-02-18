@@ -9,12 +9,16 @@ class Student extends Model
 {
     use HasFactory;
 
+    protected $primaryKey = 'student_number';
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     protected $fillable = [
         'student_number',
+        'name',
         'user_id',
         'faculty',
         'department',
-        'program',
         'campus',
         'phone'
     ];
@@ -25,7 +29,7 @@ class Student extends Model
 
         $last = self::whereYear('created_at', $year)
             ->where('student_number', 'like', "%/$year")
-            ->orderByDesc('id')
+            ->orderByDesc('created_at')
             ->first();
 
         $nextNumber = $last
@@ -47,6 +51,33 @@ class Student extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function serviceRequests()
+    {
+        return $this->hasMany(ServiceRequest::class, 'student_id', 'student_number');
+    }
+
+    public function getRouteKeyName()
+    {
+        return 'student_number';
+    }
+
+    public function getRouteKey()
+    {
+        // student_number contains "/", so map it to a URL-safe token.
+        return str_replace('/', '__', $this->student_number);
+    }
+
+    public function resolveRouteBinding($value, $field = null)
+    {
+        $field = $field ?? $this->getRouteKeyName();
+
+        if ($field === 'student_number') {
+            $value = str_replace('__', '/', $value);
+        }
+
+        return $this->where($field, $value)->firstOrFail();
     }
 
     public function isProfileComplete(): bool

@@ -38,7 +38,7 @@
                             <tbody>
                                 @foreach($staffs as $staff)
                                 <tr class="nk-tb-item">
-                                    <td class="nk-tb-col">{{ $staff->user->name }}</td>
+                                    <td class="nk-tb-col">{{ $staff->name ?? 'N/A' }}</td>
                                     <td class="nk-tb-col">{{ $staff->user->email }}</td>
                                     <td class="nk-tb-col">{{ $staff->office?->name }}</td>
                                     <td class="nk-tb-col">{{ $staff->campus ?? 'N/A' }}</td>
@@ -56,12 +56,12 @@
                                                         <ul class="link-list-opt no-bdr">
                                                             <li>
                                                                 <a role="button" class="text-warning" data-bs-toggle="modal" data-bs-target="#staffModal"
-                                                                    onclick="editStaff({{ $staff->id }}, '{{ $staff->user->name }}', '{{ $staff->user->email }}', '{{ $staff->office_id }}', '{{ $staff->campus }}', '{{ $staff->faculty }}', '{{ $staff->department }}', '{{ $staff->position }}', '{{ $staff->phone }}')">Edit</a>
+                                                                    onclick='editStaff(@json($staff->staff_number), @json($staff->name), @json($staff->user->email), @json($staff->office_id), @json($staff->campus), @json($staff->faculty), @json($staff->department), @json($staff->position), @json($staff->phone))'>Edit</a>
                                                             </li>
 
                                                             <li>
                                                                 <!-- Delete Staff -->
-                                                                <a role="button" class="text-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ $staff->id }}">Delete</a>
+                                                                <a role="button" class="text-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ $staff->staff_number }}">Delete</a>
                                                             </li>
                                                         </ul>
                                                     </div>
@@ -188,8 +188,8 @@
         document.getElementById('password_confirmation').required = true;
     }
 
-    function editStaff(id, name, email, office_id, campus, faculty, department, position, phone) {
-        document.getElementById('staffForm').action = "/admin/staff/" + id;
+    function editStaff(staffNumber, name, email, office_id, campus, faculty, department, position, phone) {
+        document.getElementById('staffForm').action = "/admin/staff/" + encodeURIComponent(staffNumber);
         document.getElementById('method').value = 'PUT';
         document.getElementById('name').value = name;
         document.getElementById('email').value = email;
@@ -227,7 +227,8 @@
         'Faculty of Computing and Information Sciences': [
             'Software Engineering',
             'Information Systems & Management',
-            'Information Technology'
+            'Information Technology',
+            'IT-Multimedia'
         ]
     };
 

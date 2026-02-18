@@ -46,14 +46,14 @@ class StaffController extends Controller
 
         // Create user
         $user = User::create([
-            'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => 'staff',
         ]);
 
         // Create staff record
-        Staff::create([
+        $staff = Staff::create([
+            'name' => $request->name,
             'user_id' => $user->id,
             'office_id' => $request->office_id,
             'campus' => $request->campus,
@@ -61,6 +61,10 @@ class StaffController extends Controller
             'department' => $isStudentAffairs ? $request->department : null,
             'position' => $request->position,
             'phone' => $request->phone,
+        ]);
+
+        $user->update([
+            'staff_number' => $staff->staff_number,
         ]);
 
         return redirect()->back()->with('success', 'Staff created successfully.');
@@ -94,7 +98,6 @@ class StaffController extends Controller
 
         // Update user
         $user = $staff->user;
-        $user->name = $request->name;
         $user->email = $request->email;
         if ($request->password) {
             $user->password = Hash::make($request->password);
@@ -103,6 +106,7 @@ class StaffController extends Controller
 
         // Update staff details
         $staff->update([
+            'name' => $request->name,
             'office_id' => $request->office_id,
             'campus' => $request->campus,
             'faculty' => $isStudentAffairs ? $request->faculty : null,

@@ -12,7 +12,12 @@
     <div class="card mb-3">
         <div class="card-body">
             <h5>Student Info</h5>
-            <p><strong>Name:</strong> {{ $request->student->user->name ?? 'N/A' }}</p>
+            <p>
+                <strong>Student ID:</strong>
+                <span title="{{ $request->student->name ?? 'No profile name' }}">
+                    {{ $request->student->student_number ?? 'N/A' }}
+                </span>
+            </p>
             <p><strong>Email:</strong> {{ $request->student->user->email ?? 'N/A' }}</p>
             <p><strong>Office:</strong> {{ $request->office->name ?? 'N/A' }}</p>
         </div>

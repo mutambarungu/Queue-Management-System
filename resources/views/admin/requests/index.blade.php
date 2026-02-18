@@ -33,6 +33,7 @@
                                     <option value="Submitted" {{ request('status')=='Submitted' ? 'selected' : '' }}>Submitted</option>
                                     <option value="In Review" {{ request('status')=='In Review' ? 'selected' : '' }}>In Review</option>
                                     <option value="Resolved" {{ request('status')=='Resolved' ? 'selected' : '' }}>Resolved</option>
+                                    <option value="Closed" {{ request('status')=='Closed' ? 'selected' : '' }}>Closed</option>
                                 </select>
                             </div>
                             <div class="col-md-3">

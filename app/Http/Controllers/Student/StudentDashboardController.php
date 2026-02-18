@@ -43,8 +43,6 @@ class StudentDashboardController extends Controller
         $student->update([
             'faculty' => $validated['faculty'],
             'department' => $validated['department'],
-            // Keep `program` synced for older parts of the app.
-            'program' => $validated['department'],
             'campus' => $validated['campus'],
             'phone' => $validated['phone'],
         ]);

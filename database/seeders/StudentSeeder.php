@@ -17,31 +17,41 @@ class StudentSeeder extends Seeder
             [
                 'name' => 'Eric Mugisha',
                 'email' => 'eric.mugisha@student.university.edu',
-                'program' => 'BSc Information Technology',
+                'faculty' => 'Faculty of Computing and Information Sciences',
+                'department' => 'Information Technology',
+                'campus' => 'Kigali Campus',
                 'phone' => '0789001111',
             ],
             [
                 'name' => 'Aline Uwase',
                 'email' => 'aline.uwase@student.university.edu',
-                'program' => 'BSc Computer Science',
+                'faculty' => 'Faculty of Computing and Information Sciences',
+                'department' => 'Software Engineering',
+                'campus' => 'Kigali Campus',
                 'phone' => '0789002222',
             ],
             [
                 'name' => 'Patrick Habimana',
                 'email' => 'patrick.habimana@student.university.edu',
-                'program' => 'BEng Electrical Engineering',
+                'faculty' => 'Faculty of Computing and Information Sciences',
+                'department' => 'Information Systems & Management',
+                'campus' => 'Rwamagana Campus',
                 'phone' => '0789003333',
             ],
             [
                 'name' => 'Chantal Mukamana',
                 'email' => 'chantal.mukamana@student.university.edu',
-                'program' => 'BBA Finance',
+                'faculty' => 'Faculty of Economic Sciences & Management',
+                'department' => 'Finance',
+                'campus' => 'Nyanza Campus',
                 'phone' => '0789004444',
             ],
             [
                 'name' => 'Jean Paul Niyonzima',
                 'email' => 'jeanpaul.niyonzima@student.university.edu',
-                'program' => 'BSc Mathematics',
+                'faculty' => 'Faculty of Economic Sciences & Management',
+                'department' => 'Economics',
+                'campus' => 'Kigali Campus',
                 'phone' => '0789005555',
             ],
         ];
@@ -52,7 +62,6 @@ class StudentSeeder extends Seeder
             $user = User::updateOrCreate(
                 ['email' => $data['email']],
                 [
-                    'name' => $data['name'],
                     'password' => Hash::make('password'),
                     'role' => 'student',
                     'email_verified_at' => now(),
@@ -66,11 +75,19 @@ class StudentSeeder extends Seeder
             Student::updateOrCreate(
                 ['user_id' => $user->id],
                 [
+                    'name' => $data['name'],
                     'student_number' => $studentNumber,
-                    'program' => $data['program'],
+                    'faculty' => $data['faculty'],
+                    'department' => $data['department'],
+                    'campus' => $data['campus'],
                     'phone' => $data['phone'],
                 ]
             );
+
+            $user->update([
+                'student_number' => $studentNumber,
+                'staff_number' => null,
+            ]);
         }
     }
 }
