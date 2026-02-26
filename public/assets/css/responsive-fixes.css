@@ -1,0 +1,108 @@
+/* Global responsive fixes for DashLite-based app pages */
+
+html,
+body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+.app-responsive .nk-content {
+    overflow-x: hidden;
+}
+
+.app-responsive .card-inner,
+.app-responsive .card-body,
+.app-responsive .nk-block {
+    max-width: 100%;
+}
+
+.app-responsive .form-control,
+.app-responsive .form-select,
+.app-responsive .btn {
+    max-width: 100%;
+}
+
+/* Keep table screens usable on mobile by enabling horizontal scroll */
+.app-responsive .dataTables_wrapper,
+.app-responsive .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.app-responsive table.datatable-init,
+.app-responsive table.nk-tb-list,
+.app-responsive table.table {
+    width: 100% !important;
+}
+
+.app-responsive .table-responsive table.datatable-init,
+.app-responsive .table-responsive table.nk-tb-list,
+.app-responsive .table-responsive table.table {
+    min-width: 680px;
+}
+
+@media (max-width: 991.98px) {
+    .app-responsive .nk-content .container,
+    .app-responsive .nk-content .container-fluid {
+        padding-left: 0.9rem;
+        padding-right: 0.9rem;
+    }
+
+    .app-responsive .nk-block-head-content .d-flex.justify-content-between.align-items-center {
+        flex-wrap: wrap;
+        align-items: flex-start !important;
+        gap: 0.75rem;
+    }
+
+    .app-responsive .dataTables_wrapper .dataTables_filter,
+    .app-responsive .dataTables_wrapper .dataTables_length {
+        margin-bottom: 0.5rem;
+    }
+
+    .app-responsive .dataTables_wrapper .row {
+        row-gap: 0.5rem;
+    }
+
+    .app-responsive .dataTables_wrapper .dataTables_filter input,
+    .app-responsive .dataTables_wrapper .dataTables_length select {
+        width: 100%;
+        min-width: 120px;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .app-responsive .nk-content {
+        padding-top: 1rem;
+    }
+
+    .app-responsive .card-inner,
+    .app-responsive .card-body {
+        padding: 1rem;
+    }
+
+    .app-responsive table.datatable-init,
+    .app-responsive table.nk-tb-list,
+    .app-responsive table.table {
+        min-width: 680px;
+    }
+
+    .app-responsive .btn {
+        white-space: normal;
+    }
+
+    .app-responsive .btn-group,
+    .app-responsive .input-group {
+        flex-wrap: wrap;
+    }
+
+    .app-responsive .modal-dialog {
+        margin: 0.75rem;
+    }
+
+    .app-responsive input,
+    .app-responsive select,
+    .app-responsive textarea {
+        font-size: 16px;
+    }
+}

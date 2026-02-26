@@ -62,6 +62,34 @@
         footer {
             background: #f8f9fa;
         }
+
+        @media (max-width: 767.98px) {
+            .hero {
+                padding: 64px 0;
+            }
+
+            .hero h1 {
+                font-size: 1.75rem;
+            }
+
+            .hero .btn {
+                width: 100%;
+                margin: 0.35rem 0;
+            }
+
+            .navbar .ms-auto {
+                display: flex;
+                flex-direction: column;
+                width: 100%;
+                margin-top: 0.75rem;
+                gap: 0.5rem;
+            }
+
+            .navbar .ms-auto .btn {
+                width: 100%;
+                margin: 0;
+            }
+        }
     </style>
 </head>
 

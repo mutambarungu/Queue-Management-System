@@ -13,12 +13,15 @@
         left: 50%;
         bottom: 125%;
         transform: translateX(-50%);
-        white-space: nowrap;
+        white-space: normal;
+        max-width: min(75vw, 260px);
         background: #111827;
         color: #fff;
         padding: 4px 8px;
         border-radius: 6px;
         font-size: 12px;
+        text-align: center;
+        word-break: break-word;
         z-index: 1000;
     }
     </style>

@@ -14,10 +14,11 @@
 
     <link rel="stylesheet" href="{{ asset('assets/css/dashlitee1e3.css?ver=3.2.4') }}">
     <link id="skin-default" rel="stylesheet" href="{{ asset('assets/css/themee1e3.css?ver=3.2.4') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/responsive-fixes.css') }}">
 
 </head>
 
-<body class="nk-body bg-lighter npc-general has-sidebar ">
+<body class="nk-body bg-lighter npc-general has-sidebar app-responsive">
     <div class="nk-app-root">
         <div class="nk-main ">
             @include('layouts.sidebar')
@@ -45,6 +46,22 @@
     <script src="{{ asset('assets/js/demo-settingse1e3.js?ver=3.2.4') }}"></script>
     <script src="{{ asset('assets/js/charts/gd-defaulte1e3.js?ver=3.2.4') }}"></script>
     <script src="{{ asset('assets/js/libs/datatable-btnse1e3.js?ver=3.2.4') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const tables = document.querySelectorAll('.nk-content table');
+
+            tables.forEach((table) => {
+                if (table.closest('.table-responsive') || table.closest('.dataTables_wrapper')) {
+                    return;
+                }
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'table-responsive';
+                table.parentNode.insertBefore(wrapper, table);
+                wrapper.appendChild(table);
+            });
+        });
+    </script>
 </body>
 
 </html>

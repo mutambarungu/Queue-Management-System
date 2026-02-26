@@ -69,6 +69,25 @@
                 display: none;
             }
         }
+
+        @media (max-width: 576px) {
+            body {
+                align-items: flex-start;
+                padding: 1rem 0;
+            }
+
+            .login-card {
+                border-radius: 14px;
+            }
+
+            .login-right {
+                padding: 1.1rem;
+            }
+
+            .login-right .input-group {
+                flex-wrap: nowrap;
+            }
+        }
     </style>
 </head>
 

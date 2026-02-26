@@ -4,6 +4,7 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $office->name }} Queue</title>
     <meta http-equiv="refresh" content="10"> {{-- Auto refresh --}}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -21,6 +22,22 @@
 
         .card {
             border-radius: 20px;
+        }
+
+        @media (max-width: 767.98px) {
+            .big-number {
+                font-size: 2.5rem;
+                word-break: break-word;
+            }
+
+            .container-fluid {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+
+            .card {
+                border-radius: 14px;
+            }
         }
     </style>
 </head>
