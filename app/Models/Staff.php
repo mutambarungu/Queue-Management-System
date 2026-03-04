@@ -18,6 +18,7 @@ class Staff extends Model
         'name',
         'user_id',
         'office_id',
+        'sub_office_id',
         'campus',
         'faculty',
         'department',
@@ -55,6 +56,11 @@ class Staff extends Model
     public function office()
     {
         return $this->belongsTo(Office::class);
+    }
+
+    public function subOffice()
+    {
+        return $this->belongsTo(OfficeSubOffice::class, 'sub_office_id');
     }
 
     // Link to appointments

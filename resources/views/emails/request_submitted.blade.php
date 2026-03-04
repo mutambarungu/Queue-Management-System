@@ -8,12 +8,18 @@
     <li><strong>Status:</strong> {{ $serviceRequest->status }}</li>
 </ul>
 
-@if(strtolower($serviceRequest->office->name) === 'student affairs')
+@php
+    $studentFaculty = optional($serviceRequest->student)->faculty;
+    $studentCampus = optional($serviceRequest->student)->campus;
+    $specialRule = \App\Support\QueueBusinessCalendar::matchingSpecialRule($serviceRequest->office_id, $studentFaculty, $studentCampus);
+@endphp
+
+@if($specialRule)
 <p style="margin-top:10px; color:#b45309;">
     <strong>Important Notice:</strong><br>
-    The <strong>Student Affairs Office</strong> attends to requests
-    <strong>only on Tuesdays and Thursdays</strong>.
-    Please plan accordingly.
+    Working hours for this request category are:
+    <strong>{{ \App\Support\QueueBusinessCalendar::hoursDescription($serviceRequest->office_id, $studentFaculty, $studentCampus) }}</strong>.
+    Queue progress and appointments are paused during holidays and on Saturdays.
 </p>
 @endif
 

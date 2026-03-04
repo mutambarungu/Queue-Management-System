@@ -18,6 +18,11 @@
             </div>
 
             <!-- Live Queue Card -->
+            @php
+                $isQueueActive = in_array($request->status, ['Submitted', 'In Review', 'Awaiting Student Response'], true);
+            @endphp
+
+            @if($isQueueActive)
             <div class="card mb-4 shadow-sm rounded-4">
                 <div class="card-header bg-primary bg-opacity-10">
                     <h5 class="mb-0 fw-semibold">
@@ -25,26 +30,56 @@
                     </h5>
                 </div>
                 <div class="card-body">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                        <span class="badge bg-dark" id="lane_label">
+                            Lane: {{ optional(optional($request->serviceType)->subOffice)->name ?: 'General Queue' }}
+                        </span>
+                        <small class="text-muted" id="last_updated_at">Last updated at {{ now()->format('H:i:s') }}</small>
+                    </div>
+
+                    <div class="alert alert-info py-2 mb-3" id="queue_state_line">
+                        {{ $request->queue_state }}
+                    </div>
+
                     <div class="row text-center align-items-center">
-                        <div class="col-md-3 mb-3">
+                        <div class="col-md-2 mb-3">
                             <h6>Queue Position</h6>
                             <span class="badge bg-primary fs-5" id="queue_position">#{{ $request->queue_position }}</span>
                         </div>
-                        <div class="col-md-3 mb-3">
+                        <div class="col-md-2 mb-3">
                             <h6>People Ahead</h6>
                             <span class="badge bg-warning fs-5" id="people_ahead">{{ $request->people_ahead }}</span>
                         </div>
                         <div class="col-md-3 mb-3">
                             <h6>Currently Serving</h6>
                             <span class="badge bg-info fs-6" id="currently_serving">
-                                {{ optional($request->currently_serving)->request_number ?? 'None' }}
+                                {{ optional($request->currently_serving)->queue_position ?? 'None' }}
                             </span>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <h6>Estimated Wait</h6>
-                            <span class="badge bg-success fs-6" id="estimated_wait">
-                                ~{{ $request->estimated_wait_time }} mins
+                            <h6>Next in Line</h6>
+                            <span class="badge bg-secondary fs-6" id="next_in_line">
+                                {{ optional($request->next_in_line)->queue_position ?? 'None' }}
                             </span>
+                        </div>
+                    </div>
+
+                    <div class="mt-2 mb-3">
+                        @php
+                            $stages = ['Submitted', 'In Review', 'Resolved'];
+                            $activeStageIndex = match ($request->status) {
+                                'Submitted' => 0,
+                                'In Review', 'Awaiting Student Response', 'Appointment Required', 'Appointment Scheduled' => 1,
+                                'Resolved', 'Closed' => 2,
+                                default => 0,
+                            };
+                        @endphp
+                        <div class="d-flex gap-2 flex-wrap" id="status_stages">
+                            @foreach($stages as $index => $stage)
+                                <span class="badge {{ $index <= $activeStageIndex ? 'bg-primary' : 'bg-light text-dark border' }}">
+                                    {{ $stage }}
+                                </span>
+                            @endforeach
                         </div>
                     </div>
 
@@ -63,6 +98,24 @@
                     </div>
                 </div>
             </div>
+            @else
+            <div class="card mb-4 shadow-sm rounded-4">
+                <div class="card-header bg-success bg-opacity-10">
+                    <h5 class="mb-0 fw-semibold">
+                        <i class="bi bi-check2-circle me-2"></i> Request Status
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2">
+                        This request is no longer in the live queue.
+                    </p>
+                    <span class="badge bg-success fs-6">{{ $request->status }}</span>
+                    <p class="text-muted mt-2 mb-0">
+                        Last updated: {{ $request->updated_at?->format('d M Y h:i A') }}
+                    </p>
+                </div>
+            </div>
+            @endif
 
             <!-- Student Info Card -->
             @php
@@ -207,6 +260,7 @@
 </div>
 
 <!-- AJAX Live Queue Update -->
+@if($isQueueActive)
 <script>
     function fetchQueueStatus() {
         fetch("{{ route('student.requests.queueStatus', $request->id) }}")
@@ -215,7 +269,30 @@
                 document.getElementById('queue_position').innerText = '#' + data.queue_position;
                 document.getElementById('people_ahead').innerText = data.people_ahead;
                 document.getElementById('currently_serving').innerText = data.currently_serving ?? 'None';
-                document.getElementById('estimated_wait').innerText = '~' + data.estimated_wait + ' mins';
+                document.getElementById('next_in_line').innerText = data.next_in_line ?? 'None';
+                document.getElementById('queue_state_line').innerText = data.queue_state;
+                document.getElementById('last_updated_at').innerText = 'Last updated at ' + data.last_updated_at;
+                document.getElementById('lane_label').innerText = 'Lane: ' + (data.lane_label ?? 'General Queue');
+
+                const statusStages = document.getElementById('status_stages');
+                const currentStatus = data.status;
+                const stageMap = {
+                    'Submitted': 0,
+                    'In Review': 1,
+                    'Awaiting Student Response': 1,
+                    'Appointment Required': 1,
+                    'Appointment Scheduled': 1,
+                    'Resolved': 2,
+                    'Closed': 2
+                };
+                const activeStage = stageMap[currentStatus] ?? 0;
+                Array.from(statusStages.children).forEach((badge, index) => {
+                    if (index <= activeStage) {
+                        badge.className = 'badge bg-primary';
+                    } else {
+                        badge.className = 'badge bg-light text-dark border';
+                    }
+                });
 
                 // Update progress bar
                 const totalQueue = Math.max(data.queue_position + data.people_ahead, 1);
@@ -227,9 +304,9 @@
             .catch(err => console.error(err));
     }
 
-    // Update immediately and then every 5 seconds
     fetchQueueStatus();
-    setInterval(fetchQueueStatus, 5000);
+    setInterval(fetchQueueStatus, 15000);
 </script>
+@endif
 
 @endsection

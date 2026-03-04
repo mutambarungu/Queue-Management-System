@@ -3,13 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\User;
-use App\Models\Student;
 use App\Models\Staff;
 use App\Models\ServiceRequest;
 use App\Models\Office;
-use App\Models\Faculty;
+use Illuminate\Database\Eloquent\Builder;
 
 class DashboardController extends Controller
 {
@@ -42,8 +39,8 @@ class DashboardController extends Controller
                 break;
 
             case 'staff':
-                // Only requests for staff office
-                $requestsQuery->where('office_id', $user->staff->office->id);
+                // Only requests within staff scope
+                $this->applyStaffScope($requestsQuery, $user->staff);
                 break;
 
             case 'student':
@@ -82,7 +79,13 @@ class DashboardController extends Controller
         */
 
         // Requests per office
-        $requestsPerOffice = Office::withCount([
+        $requestsPerOfficeQuery = Office::query();
+
+        if ($user->role === 'staff' && filled(optional($user->staff)->office_id)) {
+            $requestsPerOfficeQuery->whereKey($user->staff->office_id);
+        }
+
+        $requestsPerOffice = $requestsPerOfficeQuery->withCount([
             'requests' => function ($query) use ($user) {
 
                 if ($user->role === 'student') {
@@ -90,7 +93,7 @@ class DashboardController extends Controller
                 }
 
                 if ($user->role === 'staff') {
-                    $query->where('office_id', $user->staff->office->id);
+                    $this->applyStaffScope($query, $user->staff);
                 }
             }
         ])->get();
@@ -109,5 +112,34 @@ class DashboardController extends Controller
             'requestsPerOffice',
             'requestsPerStatus'
         ));
+    }
+
+    private function applyStaffScope(Builder $query, Staff $staff): void
+    {
+        if (filled($staff->office_id)) {
+            $query->where('office_id', $staff->office_id);
+        }
+
+        $query->whereHas('serviceType', function ($serviceTypeQuery) use ($staff) {
+            if (filled($staff->sub_office_id)) {
+                $serviceTypeQuery->where('sub_office_id', $staff->sub_office_id);
+            } else {
+                $serviceTypeQuery->whereNull('sub_office_id');
+            }
+        });
+
+        $query->whereHas('student', function ($studentQuery) use ($staff) {
+            if (filled($staff->campus)) {
+                $studentQuery->where('campus', $staff->campus);
+            }
+
+            if (filled($staff->faculty)) {
+                $studentQuery->where('faculty', $staff->faculty);
+            }
+
+            if (filled($staff->department)) {
+                $studentQuery->where('department', $staff->department);
+            }
+        });
     }
 }

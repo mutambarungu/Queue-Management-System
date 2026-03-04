@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Support\QueueBusinessCalendar;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 
 class ServiceRequest extends Model
 {
@@ -109,14 +111,19 @@ class ServiceRequest extends Model
 
     public function getQueuePositionAttribute()
     {
-        return self::where('office_id', $this->office_id)
+        $anchorTime = $this->queued_at ?? $this->created_at;
+        if (!$anchorTime) {
+            return 1;
+        }
+
+        return $this->laneQueueBaseQuery()
             ->whereNull('archived_at')
             ->whereIn('status', ['Submitted', 'In Review', 'Awaiting Student Response'])
             ->where(function ($q) {
                 $q->where('priority', 'urgent')
                     ->orWhere('priority', 'normal');
             })
-            ->where('queued_at', '<', $this->queued_at)
+            ->whereRaw('COALESCE(queued_at, created_at) < ?', [$anchorTime])
             ->count() + 1;
     }
 
@@ -127,17 +134,143 @@ class ServiceRequest extends Model
 
     public function getCurrentlyServingAttribute()
     {
-        return self::where('office_id', $this->office_id)
+        if (!$this->isQueueOperationalNow()) {
+            return null;
+        }
+
+        return $this->laneQueueBaseQuery()
             ->whereNull('archived_at')
             ->whereIn('status', ['In Review'])
             ->orderByRaw("FIELD(priority, 'urgent', 'normal')")
-            ->orderBy('queued_at')
+            ->orderByRaw('COALESCE(queued_at, created_at)')
             ->first();
     }
 
     public function getEstimatedWaitTimeAttribute()
     {
-        $avgMinutesPerRequest = 5; // You can make this dynamic later
+        $avgMinutesPerRequest = $this->laneAverageMinutesPerRequest();
         return $this->people_ahead * $avgMinutesPerRequest;
+    }
+
+    public function getNextInLineAttribute()
+    {
+        if (!$this->isQueueOperationalNow()) {
+            return null;
+        }
+
+        $basePending = $this->laneQueueBaseQuery()
+            ->whereNull('archived_at')
+            ->whereIn('status', ['Submitted', 'Awaiting Student Response']);
+
+        if ($this->shouldPreferNormalPriority()) {
+            $normalCandidate = (clone $basePending)
+                ->where('priority', 'normal')
+                ->orderByRaw('COALESCE(queued_at, created_at)')
+                ->first();
+
+            if ($normalCandidate) {
+                return $normalCandidate;
+            }
+        }
+
+        return $basePending
+            ->orderByRaw("FIELD(priority, 'urgent', 'normal')")
+            ->orderByRaw('COALESCE(queued_at, created_at)')
+            ->first();
+    }
+
+    public function getQueueStateAttribute()
+    {
+        $now = QueueBusinessCalendar::now();
+        $closureMessage = QueueBusinessCalendar::closureMessage(
+            $now,
+            $this->office_id,
+            optional($this->student)->faculty,
+            optional($this->student)->campus
+        );
+
+        if ($closureMessage) {
+            return $closureMessage;
+        }
+
+        if ($this->queue_position === 1 && !$this->currently_serving) {
+            return 'Queue not started yet';
+        }
+
+        if ($this->status === 'In Review') {
+            return 'You are being served';
+        }
+
+        return 'Queue active';
+    }
+
+    private function laneQueueBaseQuery(): Builder
+    {
+        $subOfficeId = optional($this->serviceType)->sub_office_id;
+
+        return self::where('office_id', $this->office_id)
+            ->whereHas('serviceType', function ($query) use ($subOfficeId) {
+                if (filled($subOfficeId)) {
+                    $query->where('sub_office_id', $subOfficeId);
+                } else {
+                    $query->whereNull('sub_office_id');
+                }
+            });
+    }
+
+    private function laneAverageMinutesPerRequest(): int
+    {
+        $subOfficeId = optional($this->serviceType)->sub_office_id;
+
+        $durations = self::where('office_id', $this->office_id)
+            ->whereHas('serviceType', function ($query) use ($subOfficeId) {
+                if (filled($subOfficeId)) {
+                    $query->where('sub_office_id', $subOfficeId);
+                } else {
+                    $query->whereNull('sub_office_id');
+                }
+            })
+            ->whereIn('status', ['Resolved', 'Closed'])
+            ->whereNotNull('queued_at')
+            ->whereNotNull('updated_at')
+            ->selectRaw('TIMESTAMPDIFF(MINUTE, queued_at, updated_at) AS duration_minutes')
+            ->orderByDesc('updated_at')
+            ->limit(20)
+            ->pluck('duration_minutes');
+
+        $avg = $durations->avg();
+
+        return max(1, (int) round($avg ?: 5));
+    }
+
+    private function shouldPreferNormalPriority(): bool
+    {
+        $recentPriorities = $this->laneQueueBaseQuery()
+            ->whereNull('archived_at')
+            ->whereIn('status', ['In Review', 'Resolved', 'Closed'])
+            ->orderByDesc('updated_at')
+            ->limit(3)
+            ->pluck('priority')
+            ->values();
+
+        if ($recentPriorities->count() < 3 || $recentPriorities->contains(fn ($priority) => $priority !== 'urgent')) {
+            return false;
+        }
+
+        return $this->laneQueueBaseQuery()
+            ->whereNull('archived_at')
+            ->whereIn('status', ['Submitted', 'Awaiting Student Response'])
+            ->where('priority', 'normal')
+            ->exists();
+    }
+
+    private function isQueueOperationalNow(): bool
+    {
+        return QueueBusinessCalendar::isOpenAt(
+            QueueBusinessCalendar::now(),
+            $this->office_id,
+            optional($this->student)->faculty,
+            optional($this->student)->campus
+        );
     }
 }

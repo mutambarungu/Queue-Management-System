@@ -24,7 +24,7 @@
         word-break: break-word;
         z-index: 1000;
     }
-    </style>
+</style>
 
 <div class="container-fluid">
     <div class="nk-content-inner">
@@ -60,24 +60,23 @@
                             <tbody>
                                 @foreach($users as $user)
                                 @php
-                                    $profileId = 'N/A';
-                                    $profileName = '';
+                                $profileId = 'N/A';
+                                $profileName = '';
 
-                                    if ($user->role === 'student') {
-                                        $profileId = $user->student?->student_number ?? $user->student_number ?? 'N/A';
-                                        $profileName = $user->student?->name ?? $user->name ?? '';
-                                    } elseif ($user->role === 'staff') {
-                                        $profileId = $user->staff?->staff_number ?? $user->staff_number ?? 'N/A';
-                                        $profileName = $user->staff?->name ?? $user->name ?? '';
-                                    }
+                                if ($user->role === 'student') {
+                                $profileId = $user->student?->student_number ?? $user->student_number ?? 'N/A';
+                                $profileName = $user->student?->name ?? $user->name ?? '';
+                                } elseif ($user->role === 'staff') {
+                                $profileId = $user->staff?->staff_number ?? $user->staff_number ?? 'N/A';
+                                $profileName = $user->staff?->name ?? $user->name ?? '';
+                                }
                                 @endphp
                                 <tr class="nk-tb-item">
                                     <td class="nk-tb-col">
                                         <span
                                             class="profile-id-hover"
                                             title="{{ $profileName ?: 'No profile name' }}"
-                                            data-name="{{ $profileName ?: 'No profile name' }}"
-                                        >{{ $profileId }}</span>
+                                            data-name="{{ $profileName ?: 'No profile name' }}">{{ $profileId }}</span>
                                     </td>
                                     <td class="nk-tb-col">{{ $user->email }}</td>
                                     <td class="nk-tb-col">
@@ -160,7 +159,7 @@
 </div>
 @foreach($users as $user)
 @php
-    $profileName = $user->student?->name ?? $user->staff?->name ?? '';
+$profileName = $user->student?->name ?? $user->staff?->name ?? '';
 @endphp
 <div class="modal fade" id="verifyUserModal{{ $user->id }}" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
@@ -447,7 +446,7 @@
         'Faculty of Computing and Information Sciences': [
             'Software Engineering',
             'Information Systems & Management',
-            'Information Technology',
+            'IT-Networking',
             'IT-Multimedia'
         ]
     };
@@ -463,7 +462,7 @@
         placeholder.textContent = departments.length ? 'Select Department' : 'Select Faculty First';
         departmentSelect.appendChild(placeholder);
 
-        departments.forEach(function (department) {
+        departments.forEach(function(department) {
             const option = document.createElement('option');
             option.value = department;
             option.textContent = department;
@@ -515,10 +514,10 @@
         studentFields.style.display = role === 'student' ? '' : 'none';
         staffFields.style.display = role === 'staff' ? '' : 'none';
 
-        studentFieldIds.forEach(function (id) {
+        studentFieldIds.forEach(function(id) {
             document.getElementById(id).disabled = role !== 'student';
         });
-        staffFieldIds.forEach(function (id) {
+        staffFieldIds.forEach(function(id) {
             document.getElementById(id).disabled = role !== 'staff';
         });
 
@@ -575,10 +574,10 @@
     }
 
     document.getElementById('role').addEventListener('change', applyRoleFields);
-    document.getElementById('student_faculty').addEventListener('change', function () {
+    document.getElementById('student_faculty').addEventListener('change', function() {
         populateDepartments(this.value, 'student_department', '');
     });
-    document.getElementById('staff_faculty').addEventListener('change', function () {
+    document.getElementById('staff_faculty').addEventListener('change', function() {
         populateDepartments(this.value, 'staff_department', '');
     });
     document.getElementById('staff_office_id').addEventListener('change', toggleStaffAcademicScope);

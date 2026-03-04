@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AdminServiceRequestController;
 use App\Http\Controllers\Admin\AppointmentController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\OfficeController;
+use App\Http\Controllers\Admin\QueueCalendarSettingsController;
 use App\Http\Controllers\Admin\FacultyController;
 use App\Http\Controllers\Admin\FaqController;
 use App\Http\Controllers\Admin\ReportController;
@@ -191,6 +192,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('faqs', [FaqController::class, 'store'])->name('faqs.store');
             Route::put('faqs/{faq}', [FaqController::class, 'update'])->name('faqs.update');
             Route::delete('faqs/{faq}', [FaqController::class, 'destroy'])->name('faqs.destroy');
+        });
+
+        Route::prefix('admin')->name('admin.')->group(function () {
+            Route::get('queue-calendar', [QueueCalendarSettingsController::class, 'index'])->name('queue-calendar.index');
+            Route::put('queue-calendar', [QueueCalendarSettingsController::class, 'update'])->name('queue-calendar.update');
         });
 
         Route::prefix('admin')->name('admin.')->group(function () {

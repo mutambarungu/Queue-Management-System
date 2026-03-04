@@ -57,6 +57,17 @@
                             @enderror
                         </div>
 
+                        {{-- Sub-office (shown only when selected office has sub-offices) --}}
+                        <div class="mb-3 d-none" id="sub_office_wrapper">
+                            <label class="form-label">Sub-office</label>
+                            <select name="sub_office_id" id="sub_office" class="form-select">
+                                <option value="">Select Sub-office</option>
+                            </select>
+                            @error('sub_office_id')
+                                <small class="text-danger">{{ $message }}</small>
+                            @enderror
+                        </div>
+
                         {{-- Service Type --}}
                         <div class="mb-3">
                             <label class="form-label">Service Type</label>
@@ -71,7 +82,7 @@
                         {{-- Description --}}
                         <div class="mb-3">
                             <label class="form-label">Description (Optional)</label>
-                            <textarea name="description" class="form-control" rows="4">{{ old('description') }}</textarea>
+                            <textarea name="description" id="description" class="form-control" rows="4">{{ old('description') }}</textarea>
                             @error('description')
                                 <small class="text-danger">{{ $message }}</small>
                             @enderror
@@ -107,42 +118,95 @@
 document.addEventListener('DOMContentLoaded', function() {
 
     const officeSelect = document.getElementById('office');
+    const subOfficeWrapper = document.getElementById('sub_office_wrapper');
+    const subOfficeSelect = document.getElementById('sub_office');
     const serviceSelect = document.getElementById('service_type');
+    const descriptionInput = document.getElementById('description');
+    const oldSubOfficeId = "{{ old('sub_office_id') }}";
+    const oldServiceTypeId = "{{ old('service_type_id') }}";
+    const otherServiceTypeValue = '__other__';
 
-    // Determine initial office (from query string or selected value)
-    let selectedOffice = officeSelect.value || "{{ request('office_id') }}";
+    const officeSubOfficeMap = @json($officeSubOfficeMap);
+    const officeServiceTypeMap = @json($officeServiceTypeMap);
 
-    // Fetch service types
-    function fetchServiceTypes(officeId, selectedService = null) {
-        if (!officeId) return;
+    function renderSubOffices(officeId, selectedSubOffice = null) {
+        const subOffices = officeSubOfficeMap[officeId] || [];
+        subOfficeSelect.innerHTML = '<option value="">Select Sub-office</option>';
 
-        serviceSelect.innerHTML = '<option value="">Loading...</option>';
-        serviceSelect.disabled = true;
+        if (!subOffices.length) {
+            subOfficeWrapper.classList.add('d-none');
+            subOfficeSelect.required = false;
+            subOfficeSelect.value = '';
+            return;
+        }
 
-        fetch(`/api/service-types/${officeId}`)
-            .then(res => res.json())
-            .then(data => {
-                serviceSelect.innerHTML = '<option value="">Select Service Type</option>';
-                data.forEach(type => {
-                    const selected = selectedService == type.id ? 'selected' : '';
-                    serviceSelect.innerHTML += `<option value="${type.id}" ${selected}>${type.name}</option>`;
-                });
-                serviceSelect.disabled = false;
-            })
-            .catch(() => {
-                serviceSelect.innerHTML = '<option value="">Select Service Type</option>';
-                serviceSelect.disabled = false;
-            });
+        subOffices.forEach(subOffice => {
+            const option = document.createElement('option');
+            option.value = subOffice.id;
+            option.textContent = subOffice.name;
+            option.selected = String(selectedSubOffice) === String(subOffice.id);
+            subOfficeSelect.appendChild(option);
+        });
+
+        subOfficeWrapper.classList.remove('d-none');
+        subOfficeSelect.required = true;
     }
 
-    // Initial fetch if office preselected
-    if (selectedOffice) {
-        fetchServiceTypes(selectedOffice, "{{ old('service_type_id') }}");
+    function renderServiceTypes(officeId, selectedService = null) {
+        const subOffices = officeSubOfficeMap[officeId] || [];
+        const allTypes = officeServiceTypeMap[officeId] || [];
+        const hasSubOffices = subOffices.length > 0;
+        const selectedSubOffice = subOfficeSelect.value;
+
+        const filtered = hasSubOffices
+            ? allTypes.filter(type => String(type.sub_office_id || '') === String(selectedSubOffice || ''))
+            : allTypes;
+
+        serviceSelect.innerHTML = '<option value="">Select Service Type</option>';
+
+        filtered.forEach(type => {
+            const option = document.createElement('option');
+            option.value = type.id;
+            option.textContent = type.name;
+            option.selected = String(selectedService) === String(type.id);
+            serviceSelect.appendChild(option);
+        });
+
+        const otherOption = document.createElement('option');
+        otherOption.value = otherServiceTypeValue;
+        otherOption.textContent = 'Other (Not specified)';
+        otherOption.selected = String(selectedService) === otherServiceTypeValue;
+        serviceSelect.appendChild(otherOption);
+
+        serviceSelect.disabled = false;
     }
 
-    // Fetch on office change
+    function handleOfficeChange(selectedSubOffice = null, selectedService = null) {
+        const officeId = officeSelect.value;
+        renderSubOffices(officeId, selectedSubOffice);
+        renderServiceTypes(officeId, selectedService);
+        toggleDescriptionRequirement();
+    }
+
+    function toggleDescriptionRequirement() {
+        descriptionInput.required = serviceSelect.value === otherServiceTypeValue;
+    }
+
+    // Initial render (handles old input and office query preselect)
+    handleOfficeChange(oldSubOfficeId, oldServiceTypeId);
+
     officeSelect.addEventListener('change', function() {
-        fetchServiceTypes(this.value);
+        handleOfficeChange();
+    });
+
+    subOfficeSelect.addEventListener('change', function() {
+        const officeId = officeSelect.value;
+        renderServiceTypes(officeId);
+        toggleDescriptionRequirement();
+    });
+
+    serviceSelect.addEventListener('change', function() {
+        toggleDescriptionRequirement();
     });
 
 });

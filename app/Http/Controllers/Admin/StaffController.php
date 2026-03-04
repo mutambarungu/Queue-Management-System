@@ -8,14 +8,26 @@ use App\Models\Staff;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class StaffController extends Controller
 {
     public function index()
     {
-        $staffs = Staff::with('user', 'office')->get();
-        $offices = Office::all();
-        return view('admin.staff.index', compact('staffs', 'offices'));
+        $staffs = Staff::with('user', 'office', 'subOffice')->get();
+        $offices = Office::with('subOffices')->get();
+        $officeSubOfficeMap = $offices->mapWithKeys(function ($office) {
+            return [
+                $office->id => $office->subOffices->map(function ($subOffice) {
+                    return [
+                        'id' => $subOffice->id,
+                        'name' => $subOffice->name,
+                    ];
+                })->values(),
+            ];
+        });
+
+        return view('admin.staff.index', compact('staffs', 'offices', 'officeSubOfficeMap'));
     }
 
     public function store(Request $request)
@@ -25,6 +37,13 @@ class StaffController extends Controller
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:6|confirmed',
             'office_id' => 'nullable|exists:offices,id',
+            'sub_office_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('office_sub_offices', 'id')->where(
+                    fn ($query) => $query->where('office_id', $request->office_id)
+                ),
+            ],
             'campus' => 'nullable|string|max:255',
             'faculty' => 'nullable|string|max:255',
             'department' => 'nullable|string|max:255',
@@ -56,6 +75,7 @@ class StaffController extends Controller
             'name' => $request->name,
             'user_id' => $user->id,
             'office_id' => $request->office_id,
+            'sub_office_id' => $request->sub_office_id,
             'campus' => $request->campus,
             'faculty' => $isStudentAffairs ? $request->faculty : null,
             'department' => $isStudentAffairs ? $request->department : null,
@@ -77,6 +97,13 @@ class StaffController extends Controller
             'email' => "required|email|unique:users,email,{$staff->user_id}",
             'password' => 'nullable|string|min:6|confirmed',
             'office_id' => 'nullable|exists:offices,id',
+            'sub_office_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('office_sub_offices', 'id')->where(
+                    fn ($query) => $query->where('office_id', $request->office_id)
+                ),
+            ],
             'campus' => 'nullable|string|max:255',
             'faculty' => 'nullable|string|max:255',
             'department' => 'nullable|string|max:255',
@@ -108,6 +135,7 @@ class StaffController extends Controller
         $staff->update([
             'name' => $request->name,
             'office_id' => $request->office_id,
+            'sub_office_id' => $request->sub_office_id,
             'campus' => $request->campus,
             'faculty' => $isStudentAffairs ? $request->faculty : null,
             'department' => $isStudentAffairs ? $request->department : null,

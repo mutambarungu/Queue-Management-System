@@ -53,11 +53,19 @@ class OfficeController extends Controller
             ->filter()
             ->unique(fn($line) => strtolower($line))
             ->values();
+        if ($names->isEmpty()) {
+            return;
+        }
 
-        $office->subOffices()->delete();
+        $existing = $office->subOffices()
+            ->pluck('name')
+            ->map(fn($name) => strtolower(trim($name)))
+            ->all();
 
         foreach ($names as $name) {
-            $office->subOffices()->create(['name' => $name]);
+            if (!in_array(strtolower($name), $existing, true)) {
+                $office->subOffices()->create(['name' => $name]);
+            }
         }
     }
 

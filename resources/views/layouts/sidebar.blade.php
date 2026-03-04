@@ -131,6 +131,13 @@
                         </a>
                     </li>
 
+                    <li class="nk-menu-item">
+                        <a href="{{ route('admin.queue-calendar.index') }}" class="nk-menu-link {{ activeClass('admin.queue-calendar.*') }}">
+                            <span class="nk-menu-icon"><em class="icon ni ni-calendar"></em></span>
+                            <span class="nk-menu-text">Queue Calendar</span>
+                        </a>
+                    </li>
+
                     @endif
 
                     {{-- Staff Menus --}}

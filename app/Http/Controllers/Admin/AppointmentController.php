@@ -6,7 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Mail\AppointmentScheduledMail;
 use App\Models\Appointment;
 use App\Models\ServiceRequest;
+use App\Support\QueueBusinessCalendar;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 
@@ -90,6 +93,12 @@ class AppointmentController extends Controller
             'location'         => 'nullable|string|max:255',
         ]);
 
+        $this->assertAppointmentSlotAllowed(
+            $serviceRequest,
+            $validated['appointment_date'],
+            $validated['appointment_time']
+        );
+
         DB::transaction(function () use ($validated, $staff, $serviceRequest) {
 
             // 🔒 Prevent double booking (same staff + date + time)
@@ -169,6 +178,12 @@ class AppointmentController extends Controller
             'appointment_time' => 'required'
         ]);
 
+        $this->assertAppointmentSlotAllowed(
+            $appointment->serviceRequest,
+            $request->appointment_date,
+            $request->appointment_time
+        );
+
         $appointment->update([
             'appointment_date' => $request->appointment_date,
             'appointment_time' => $request->appointment_time,
@@ -186,6 +201,12 @@ class AppointmentController extends Controller
             'appointment_time' => 'required'
         ]);
 
+        $this->assertAppointmentSlotAllowed(
+            $appointment->serviceRequest,
+            $request->appointment_date,
+            $request->appointment_time
+        );
+
         $appointment->update([
             'appointment_date' => $request->appointment_date,
             'appointment_time' => $request->appointment_time,
@@ -197,5 +218,31 @@ class AppointmentController extends Controller
         return redirect()
             ->back()
             ->with('success', 'Appointment rescheduled successfully.');
+    }
+
+    private function assertAppointmentSlotAllowed(ServiceRequest $serviceRequest, string $date, string $time): void
+    {
+        $appointmentDateTime = Carbon::parse($date . ' ' . $time, QueueBusinessCalendar::timezone());
+        $faculty = optional($serviceRequest->student)->faculty;
+        $campus = optional($serviceRequest->student)->campus;
+
+        $holidayMessage = QueueBusinessCalendar::holidayReminderText($appointmentDateTime);
+        if ($holidayMessage) {
+            throw ValidationException::withMessages([
+                'appointment_date' => $holidayMessage,
+            ]);
+        }
+
+        if (QueueBusinessCalendar::isSabbath($appointmentDateTime)) {
+            throw ValidationException::withMessages([
+                'appointment_date' => 'Appointments are not available on Saturday (Sabbath).',
+            ]);
+        }
+
+        if (!QueueBusinessCalendar::isOpenAt($appointmentDateTime, $serviceRequest->office_id, $faculty, $campus)) {
+            throw ValidationException::withMessages([
+                'appointment_time' => 'Appointment time is outside working hours. Allowed hours: ' . QueueBusinessCalendar::hoursDescription($serviceRequest->office_id, $faculty, $campus),
+            ]);
+        }
     }
 }
