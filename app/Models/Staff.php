@@ -19,6 +19,7 @@ class Staff extends Model
         'user_id',
         'office_id',
         'sub_office_id',
+        'counter_number',
         'campus',
         'faculty',
         'department',

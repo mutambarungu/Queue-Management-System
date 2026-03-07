@@ -51,7 +51,8 @@ class QueueBusinessCalendar
      *   sabbath_weekday: int,
      *   global_windows: array<int, array{start: string, end: string}>,
      *   holidays: array<string, string>,
-     *   special_rules: array<int, array{office_id: int, campus: string|null, faculty_keyword: string|null, days: array<int,int>, windows: array<int, array{start:string,end:string}>}>
+     *   special_rules: array<int, array{office_id: int, campus: string|null, faculty_keyword: string|null, days: array<int,int>, windows: array<int, array{start:string,end:string}>}>,
+     *   lane_policies: array<int, array{office_id:int,sub_office_id:int|null,appointment_quota:int,online_quota:int,walk_in_quota:int,recall_timeout_seconds:int,walk_in_enabled:bool}>
      * }
      */
     public static function settings(): array
@@ -72,6 +73,7 @@ class QueueBusinessCalendar
             'global_windows' => self::normalizeWindows($record->global_windows ?? self::GLOBAL_WINDOWS),
             'holidays' => self::normalizeHolidays($record->holidays ?? self::DEFAULT_HOLIDAYS_2026),
             'special_rules' => self::normalizeSpecialRules($record->special_rules ?? []),
+            'lane_policies' => self::normalizeLanePolicies($record->lane_policies ?? []),
         ];
 
         return self::$settingsCache;
@@ -173,6 +175,46 @@ class QueueBusinessCalendar
         })->filter()->values()->all();
 
         return $normalized;
+    }
+
+    /**
+     * @param mixed $policies
+     * @return array<int, array{office_id:int,sub_office_id:int|null,appointment_quota:int,online_quota:int,walk_in_quota:int,recall_timeout_seconds:int,walk_in_enabled:bool,queue_operations_enabled:bool}>
+     */
+    private static function normalizeLanePolicies($policies): array
+    {
+        if (!is_array($policies)) {
+            return [];
+        }
+
+        return collect($policies)
+            ->map(function ($policy) {
+                if (!is_array($policy) || empty($policy['office_id'])) {
+                    return null;
+                }
+
+                $appointmentQuota = max(1, (int) ($policy['appointment_quota'] ?? 1));
+                $onlineQuota = max(1, (int) ($policy['online_quota'] ?? 1));
+                $walkInQuota = max(1, (int) ($policy['walk_in_quota'] ?? 2));
+                $recallTimeout = max(15, (int) ($policy['recall_timeout_seconds'] ?? 90));
+                $walkInEnabled = filter_var($policy['walk_in_enabled'] ?? true, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
+                $queueOperationsEnabled = filter_var($policy['queue_operations_enabled'] ?? true, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
+                $subOfficeId = filled($policy['sub_office_id'] ?? null) ? (int) $policy['sub_office_id'] : null;
+
+                return [
+                    'office_id' => (int) $policy['office_id'],
+                    'sub_office_id' => $subOfficeId,
+                    'appointment_quota' => $appointmentQuota,
+                    'online_quota' => $onlineQuota,
+                    'walk_in_quota' => $walkInQuota,
+                    'recall_timeout_seconds' => $recallTimeout,
+                    'walk_in_enabled' => $walkInEnabled !== false,
+                    'queue_operations_enabled' => $queueOperationsEnabled !== false,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
     }
 
     public static function timezone(): string
@@ -328,5 +370,47 @@ class QueueBusinessCalendar
         }
 
         return null;
+    }
+
+    /**
+     * @return array{appointment_quota:int,online_quota:int,walk_in_quota:int,recall_timeout_seconds:int,walk_in_enabled:bool,queue_operations_enabled:bool}
+     */
+    public static function lanePolicyFor(int $officeId, ?int $subOfficeId = null): array
+    {
+        $matched = collect(self::settings()['lane_policies'])
+            ->first(function (array $policy) use ($officeId, $subOfficeId) {
+                return (int) $policy['office_id'] === (int) $officeId
+                    && (int) ($policy['sub_office_id'] ?? 0) === (int) ($subOfficeId ?? 0);
+            });
+
+        if ($matched) {
+            return [
+                'appointment_quota' => (int) $matched['appointment_quota'],
+                'online_quota' => (int) ($matched['online_quota'] ?? 1),
+                'walk_in_quota' => (int) $matched['walk_in_quota'],
+                'recall_timeout_seconds' => (int) $matched['recall_timeout_seconds'],
+                'walk_in_enabled' => (bool) ($matched['walk_in_enabled'] ?? true),
+                'queue_operations_enabled' => (bool) ($matched['queue_operations_enabled'] ?? true),
+            ];
+        }
+
+        return [
+            'appointment_quota' => 1,
+            'online_quota' => 1,
+            'walk_in_quota' => 2,
+            'recall_timeout_seconds' => 90,
+            'walk_in_enabled' => true,
+            'queue_operations_enabled' => true,
+        ];
+    }
+
+    public static function walkInEnabledFor(int $officeId, ?int $subOfficeId = null): bool
+    {
+        return self::lanePolicyFor($officeId, $subOfficeId)['walk_in_enabled'] ?? true;
+    }
+
+    public static function queueOperationsEnabledFor(int $officeId, ?int $subOfficeId = null): bool
+    {
+        return self::lanePolicyFor($officeId, $subOfficeId)['queue_operations_enabled'] ?? true;
     }
 }

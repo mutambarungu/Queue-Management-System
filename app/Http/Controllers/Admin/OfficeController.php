@@ -5,8 +5,13 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Office;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\URL;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use Throwable;
 use ZipArchive;
 
 class OfficeController extends Controller
@@ -75,28 +80,44 @@ class OfficeController extends Controller
         return redirect()->back()->with('success', 'Office deleted successfully.');
     }
 
-    public function qrCodes()
+    public function qrCodes(Request $request)
     {
-        // Get all offices
-        $offices = Office::all();
+        $perPage = max(10, min(100, (int) $request->integer('per_page', 20)));
+        $page = LengthAwarePaginator::resolveCurrentPage();
 
-        // Prepare QR codes
-        $offices->map(function ($office) {
-            // Generate route to service request form filtered by office
-            $url = route('student.requests.create', ['office_id' => $office->id]);
-            $office->qrCode = QrCode::size(200)->generate($url);
-            $office->url = $url;
-            return $office;
+        $allEntries = $this->buildQrEntries();
+        $total = $allEntries->count();
+        $items = $allEntries->forPage($page, $perPage)->values()->map(function (array $entry) {
+            $entry['qr_code'] = $this->cachedQrCodeSvg($entry['url'], 200);
+            return $entry;
         });
 
-        return view('admin.offices.qrcodes', compact('offices'));
+        $qrEntries = new LengthAwarePaginator(
+            $items,
+            $total,
+            $perPage,
+            $page,
+            [
+                'path' => $request->url(),
+                'query' => $request->query(),
+            ]
+        );
+
+        return view('admin.offices.qrcodes', compact('qrEntries'));
     }
 
     // Download QR code as svg
-    public function download(Office $office)
+    public function download(Office $office, Request $request)
     {
-        $url = route('student.requests.create', ['office_id' => $office->id]);
-        $fileName = $office->name . '-QR.svg';
+        $subOfficeId = $request->integer('sub_office_id');
+        $subOffice = $subOfficeId
+            ? $office->subOffices()->whereKey($subOfficeId)->firstOrFail()
+            : null;
+
+        $url = $this->buildQrJoinUrl($office->id, $subOffice?->id);
+        $fileName = $subOffice
+            ? ($office->name . '-' . $subOffice->name . '-QR.svg')
+            : ($office->name . '-QR.svg');
 
         $svg = QrCode::format('svg')->size(300)->generate($url);
 
@@ -107,14 +128,12 @@ class OfficeController extends Controller
 
     public function downloadAllPdf()
     {
-        $offices = Office::all();
+        $qrEntries = $this->buildQrEntries()->map(function (array $entry) {
+            $entry['qr_code'] = $this->cachedQrCodeSvg($entry['url'], 200);
+            return $entry;
+        });
 
-        foreach ($offices as $office) {
-            $office->url = route('student.requests.create', ['office_id' => $office->id]);
-            $office->qrCode = QrCode::size(200)->generate($office->url);
-        }
-
-        $pdf = Pdf::loadView('admin.offices.qrcodes-pdf', compact('offices'))
+        $pdf = Pdf::loadView('admin.offices.qrcodes-pdf', compact('qrEntries'))
             ->setPaper('a4', 'portrait'); // Optional: set page size and orientation
 
         return $pdf->download('All-Office-QR-Codes.pdf');
@@ -122,17 +141,16 @@ class OfficeController extends Controller
 
     public function downloadAllSvgZip()
     {
-        $offices = Office::all();
+        $qrEntries = $this->buildQrEntries();
         $zipFileName = 'All-Office-QR-Codes.zip';
         $zip = new ZipArchive;
 
         $tmpFile = tempnam(sys_get_temp_dir(), 'qrzip');
 
         if ($zip->open($tmpFile, ZipArchive::CREATE) === TRUE) {
-            foreach ($offices as $office) {
-                $url = route('student.requests.create', ['office_id' => $office->id]);
-                $svg = QrCode::format('svg')->size(300)->generate($url);
-                $fileName = $office->name . '-QR.svg';
+            foreach ($qrEntries as $entry) {
+                $svg = QrCode::format('svg')->size(300)->generate($entry['url']);
+                $fileName = $entry['download_name'] . '.svg';
                 $zip->addFromString($fileName, $svg);
             }
 
@@ -140,5 +158,88 @@ class OfficeController extends Controller
         }
 
         return response()->download($tmpFile, $zipFileName)->deleteFileAfterSend(true);
+    }
+
+    private function buildQrEntries(): Collection
+    {
+        $offices = Office::with('subOffices')->orderBy('name')->get();
+        $entries = collect();
+
+        foreach ($offices as $office) {
+            $entries->push($this->makeQrEntry($office, null));
+
+            foreach ($office->subOffices as $subOffice) {
+                $entries->push($this->makeQrEntry($office, $subOffice->id, $subOffice->name));
+            }
+        }
+
+        return $entries;
+    }
+
+    private function makeQrEntry(Office $office, ?int $subOfficeId = null, ?string $subOfficeName = null): array
+    {
+        $url = $this->buildQrJoinUrl($office->id, $subOfficeId);
+
+        $laneLabel = $subOfficeName ? "{$office->name} / {$subOfficeName}" : "{$office->name} / General";
+
+        return [
+            'office_id' => $office->id,
+            'sub_office_id' => $subOfficeId,
+            'office_name' => $office->name,
+            'sub_office_name' => $subOfficeName,
+            'lane_label' => $laneLabel,
+            'url' => $url,
+            'download_name' => str_replace(['/', ' '], ['-', '-'], $laneLabel . '-QR'),
+        ];
+    }
+
+    private function cachedQrCodeSvg(string $url, int $size = 200): string
+    {
+        $cacheKey = 'office_qr_svg:' . md5($size . '|' . $url);
+
+        try {
+            return Cache::remember($cacheKey, now()->addMinutes(30), function () use ($url, $size) {
+                return QrCode::size($size)->generate($url);
+            });
+        } catch (Throwable $e) {
+            return QrCode::size($size)->generate($url);
+        }
+    }
+
+    private function buildQrJoinUrl(int $officeId, ?int $subOfficeId = null): string
+    {
+        $signedPath = URL::signedRoute('queue.join.form', array_filter([
+            'office_id' => $officeId,
+            'sub_office_id' => $subOfficeId,
+        ]), null, false);
+
+        return $this->resolveQrBaseUrl() . $signedPath;
+    }
+
+    private function resolveQrBaseUrl(): string
+    {
+        $configuredBaseUrl = trim((string) config('app.qr_code_base_url'));
+        if ($configuredBaseUrl !== '') {
+            return rtrim($configuredBaseUrl, '/');
+        }
+
+        $request = request();
+        if ($request && $request->getHost() !== '') {
+            if (in_array($request->getHost(), ['localhost', '127.0.0.1', '::1'], true)) {
+                $hostIp = gethostbyname(gethostname());
+                if ($hostIp && !in_array($hostIp, ['127.0.0.1', '::1'], true)) {
+                    return rtrim($request->getScheme() . '://' . $hostIp . ':' . $request->getPort(), '/');
+                }
+            }
+
+            return rtrim($request->getSchemeAndHttpHost(), '/');
+        }
+
+        $appUrl = trim((string) config('app.url'));
+        if ($appUrl !== '') {
+            return rtrim($appUrl, '/');
+        }
+
+        return 'http://localhost:8000';
     }
 }

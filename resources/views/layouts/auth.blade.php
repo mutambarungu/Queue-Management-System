@@ -10,11 +10,40 @@
     <link rel="stylesheet" crossorigin href="assets/compiled/css/app.css">
     <link rel="stylesheet" crossorigin href="assets/compiled/css/app-dark.css">
     <link rel="stylesheet" crossorigin href="assets/compiled/css/auth.css">
+    <link rel="stylesheet" href="{{ asset('assets/css/dark-mode-overrides.css') }}">
+    <script>
+        (function () {
+            const mode = localStorage.getItem('uqs-theme');
+            if (mode === 'dark') {
+                document.documentElement.classList.add('dark-mode');
+            }
+        })();
+    </script>
 </head>
 
 <body>
     <script src="assets/static/js/initTheme.js"></script>
+    <button id="themeToggleAuth" class="theme-toggle-btn" style="position:fixed;top:12px;right:12px;z-index:1200;border:1px solid #ced4da;background:#fff;">
+        <span id="themeToggleAuthIcon">🌙</span>
+    </button>
     @yield('content')
+    <script>
+        (function () {
+            const isDark = localStorage.getItem('uqs-theme') === 'dark';
+            document.body.classList.toggle('dark-mode', isDark);
+            document.documentElement.classList.toggle('dark-mode', isDark);
+            const icon = document.getElementById('themeToggleAuthIcon');
+            if (icon) icon.textContent = isDark ? '☀️' : '🌙';
+        })();
+
+        document.getElementById('themeToggleAuth')?.addEventListener('click', function () {
+            const willBeDark = !document.body.classList.contains('dark-mode');
+            document.body.classList.toggle('dark-mode', willBeDark);
+            document.documentElement.classList.toggle('dark-mode', willBeDark);
+            localStorage.setItem('uqs-theme', willBeDark ? 'dark' : 'light');
+            document.getElementById('themeToggleAuthIcon').textContent = willBeDark ? '☀️' : '🌙';
+        });
+    </script>
 </body>
 
 </html>

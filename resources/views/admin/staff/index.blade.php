@@ -31,6 +31,7 @@
                                     <th class="nk-tb-col">Email</th>
                                     <th class="nk-tb-col">Office</th>
                                     <th class="nk-tb-col">Sub-office</th>
+                                    <th class="nk-tb-col">Counter Label</th>
                                     <th class="nk-tb-col">Campus</th>
                                     <th class="nk-tb-col">Position</th>
                                     <th class="nk-tb-col nk-tb-col-tools text-end">Actions</th>
@@ -43,6 +44,7 @@
                                     <td class="nk-tb-col">{{ $staff->user->email }}</td>
                                     <td class="nk-tb-col">{{ $staff->office?->name }}</td>
                                     <td class="nk-tb-col">{{ $staff->subOffice?->name ?? 'N/A' }}</td>
+                                    <td class="nk-tb-col">{{ $staff->counter_number ?? 'N/A' }}</td>
                                     <td class="nk-tb-col">{{ $staff->campus ?? 'N/A' }}</td>
                                     <td class="nk-tb-col">{{ $staff->position }}</td>
                                     <td class="nk-tb-col nk-tb-col-tools">
@@ -58,7 +60,7 @@
                                                         <ul class="link-list-opt no-bdr">
                                                             <li>
                                                                 <a role="button" class="text-warning" data-bs-toggle="modal" data-bs-target="#staffModal"
-                                                                    onclick='editStaff(@json($staff->staff_number), @json($staff->name), @json($staff->user->email), @json($staff->office_id), @json($staff->sub_office_id), @json($staff->campus), @json($staff->faculty), @json($staff->department), @json($staff->position), @json($staff->phone))'>Edit</a>
+                                                                    onclick='editStaff(@json($staff->staff_number), @json($staff->name), @json($staff->user->email), @json($staff->office_id), @json($staff->sub_office_id), @json($staff->counter_number), @json($staff->campus), @json($staff->faculty), @json($staff->department), @json($staff->position), @json($staff->phone))'>Edit</a>
                                                             </li>
 
                                                             <li>
@@ -119,6 +121,11 @@
                         <select name="sub_office_id" id="sub_office_id" class="form-control">
                             <option value="">Select Sub-office</option>
                         </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label>Counter Label</label>
+                        <input type="text" name="counter_number" id="counter_number" class="form-control" placeholder="e.g. Counter 1, Office One, Finance Desk">
                     </div>
 
                     <div class="mb-3">
@@ -216,6 +223,7 @@
         document.getElementById('email').value = '';
         document.getElementById('office_id').value = '';
         populateSubOffices('', '');
+        document.getElementById('counter_number').value = '';
         document.getElementById('campus').value = '';
         document.getElementById('faculty').value = '';
         populateDepartments('', '');
@@ -226,13 +234,14 @@
         document.getElementById('password_confirmation').required = true;
     }
 
-    function editStaff(staffNumber, name, email, office_id, sub_office_id, campus, faculty, department, position, phone) {
+    function editStaff(staffNumber, name, email, office_id, sub_office_id, counter_number, campus, faculty, department, position, phone) {
         document.getElementById('staffForm').action = "/admin/staff/" + encodeURIComponent(staffNumber);
         document.getElementById('method').value = 'PUT';
         document.getElementById('name').value = name;
         document.getElementById('email').value = email;
         document.getElementById('office_id').value = office_id;
         populateSubOffices(office_id, sub_office_id || '');
+        document.getElementById('counter_number').value = counter_number || '';
         document.getElementById('campus').value = campus;
         toggleAcademicScopeFields();
         document.getElementById('faculty').value = faculty || '';

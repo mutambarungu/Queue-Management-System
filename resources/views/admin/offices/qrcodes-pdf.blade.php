@@ -39,10 +39,10 @@
 </head>
 
 <body>
-    @foreach($offices as $office)
+    @foreach($qrEntries as $entry)
     <div class="qr-container">
-        <h5>{{ $office->name }}</h5>
-        {!! $office->qrCode !!}
+        <h5>{{ $entry['lane_label'] }}</h5>
+        {!! $entry['qr_code'] !!}
     </div>
     @endforeach
 </body>

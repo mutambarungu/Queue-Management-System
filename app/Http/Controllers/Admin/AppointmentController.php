@@ -124,6 +124,8 @@ class AppointmentController extends Controller
             // Update request status
             $serviceRequest->update([
                 'status' => 'Appointment Scheduled',
+                'request_mode' => 'appointment',
+                'queue_stage' => 'waiting',
             ]);
         });
 
@@ -161,7 +163,7 @@ class AppointmentController extends Controller
     public function studentIndex()
     {
         $student = auth()->user()->student;
-        $appointments = Appointment::with(['serviceRequest.serviceType', 'staff.user'])
+        $appointments = Appointment::with(['serviceRequest.serviceType', 'serviceRequest.student.user', 'staff.user', 'staff.office'])
             ->whereHas('serviceRequest', function ($query) use ($student) {
                 $query->where('student_id', $student->student_number);
             })

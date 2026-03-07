@@ -40,10 +40,6 @@ class ServiceRequestSeeder extends Seeder
             $statusOptions = ['Submitted', 'In Review', 'Awaiting Student Response', 'Resolved', 'Closed'];
             $status = $faker->randomElement($statusOptions);
 
-            // Random priority
-            $priorityOptions = ['normal', 'urgent'];
-            $priority = $faker->randomElement($priorityOptions);
-
             // Random queued_at within past 7 days
             $queuedAt = $faker->dateTimeBetween('-7 days', 'now');
 
@@ -59,7 +55,6 @@ class ServiceRequestSeeder extends Seeder
                 'service_type_id' => $serviceType->id,
                 'description'     => $faker->sentence(10),
                 'status'          => $status,
-                'priority'        => $priority,
                 'queued_at'       => $queuedAt,
                 'archived_at'     => ($status === 'Resolved' && $faker->boolean(20)) ? Carbon::parse($updatedAt)->subDays(30) : null,
                 'created_at'      => $queuedAt,

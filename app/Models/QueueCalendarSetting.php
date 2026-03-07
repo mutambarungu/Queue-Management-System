@@ -12,11 +12,13 @@ class QueueCalendarSetting extends Model
         'global_windows',
         'holidays',
         'special_rules',
+        'lane_policies',
     ];
 
     protected $casts = [
         'global_windows' => 'array',
         'holidays' => 'array',
         'special_rules' => 'array',
+        'lane_policies' => 'array',
     ];
 }

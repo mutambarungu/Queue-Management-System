@@ -43,15 +43,15 @@
 
                                     <td class="nk-tb-col">
                                         <span class="badge bg-primary">
-                                            {{ $appointment->serviceRequest->request_number }}
+                                            {{ data_get($appointment, 'serviceRequest.request_number', 'N/A') }}
                                         </span>
                                     </td>
 
-                                    <td class="nk-tb-col">{{ $appointment->serviceRequest->student->user->name }}</td>
-                                    <td class="nk-tb-col">{{ $appointment->staff->user->name }}</td>
+                                    <td class="nk-tb-col">{{ data_get($appointment, 'serviceRequest.student.user.name', 'N/A') }}</td>
+                                    <td class="nk-tb-col">{{ data_get($appointment, 'staff.user.name', 'N/A') }}</td>
                                     <td class="nk-tb-col">{{ $appointment->appointment_date }}</td>
                                     <td class="nk-tb-col">{{ $appointment->appointment_time }}</td>
-                                    <td class="nk-tb-col">{{ $appointment->staff->office->name ?? 'N/A' }}</td>
+                                    <td class="nk-tb-col">{{ data_get($appointment, 'staff.office.name', 'N/A') }}</td>
                                     <td class="nk-tb-col tb-col-md">
                                         <span class="tb-status text-{{ $appointment->status === 'completed' ? 'success' : ($appointment->status === 'cancelled' ? 'danger' : 'warning') }}">{{ $appointment->status }}</span>
                                     </td>

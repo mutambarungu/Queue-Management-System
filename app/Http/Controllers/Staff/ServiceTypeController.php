@@ -12,7 +12,14 @@ class ServiceTypeController extends Controller
 {
     public function index()
     {
-        $serviceTypes = ServiceType::with(['office', 'subOffice'])->latest()->get();
+        $serviceTypes = ServiceType::with(['office', 'subOffice'])
+            ->latest()
+            ->get()
+            ->unique(function (ServiceType $serviceType) {
+                $laneKey = filled($serviceType->sub_office_id) ? (string) $serviceType->sub_office_id : 'general';
+                return $serviceType->office_id . '|' . $laneKey . '|' . ServiceType::normalizeName($serviceType->name);
+            })
+            ->values();
         $offices = Office::with('subOffices')->get();
 
         return view('staff.service-types.index', compact('serviceTypes', 'offices'));

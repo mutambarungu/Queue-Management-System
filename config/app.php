@@ -54,6 +54,8 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    'qr_code_base_url' => env('QR_CODE_BASE_URL'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

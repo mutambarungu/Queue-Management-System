@@ -29,6 +29,10 @@ class ServiceRequestsExport implements FromCollection, WithHeadings, ShouldAutoS
             return $this->staffPerformanceCollection();
         }
 
+        if ($this->reportType === 'queue') {
+            return $this->queueCollection();
+        }
+
         return ServiceRequest::with(['office', 'serviceType', 'student.user'])
             ->when($this->request->office_id, fn ($q) =>
                 $q->where('office_id', $this->request->office_id)
@@ -52,7 +56,6 @@ class ServiceRequestsExport implements FromCollection, WithHeadings, ShouldAutoS
         $r->office->name ?? '-',
         $r->serviceType->name ?? '-',
         $r->status,
-        ucfirst($r->priority),
         $r->created_at->format('Y-m-d'), // ✅ NO ##### in Excel
     ];
 });
@@ -74,12 +77,25 @@ class ServiceRequestsExport implements FromCollection, WithHeadings, ShouldAutoS
             ];
         }
 
+        if ($this->reportType === 'queue') {
+            return [
+                'Token',
+                'Student ID',
+                'Office',
+                'Service',
+                'Mode',
+                'Status',
+                'Queue Stage',
+                'Queued At',
+                'Updated',
+            ];
+        }
+
         return [
             'Student',
             'Office',
             'Service',
             'Status',
-            'Priority',
             'Date',
         ];
     }
@@ -132,6 +148,34 @@ class ServiceRequestsExport implements FromCollection, WithHeadings, ShouldAutoS
                 $completionRate,
             ]);
         });
+    }
+
+    private function queueCollection()
+    {
+        return ServiceRequest::with(['office', 'serviceType', 'student'])
+            ->whereNull('archived_at')
+            ->when($this->request->filled('office_id'), fn ($q) => $q->where('office_id', (int) $this->request->office_id))
+            ->when($this->request->filled('service_type_id'), fn ($q) => $q->where('service_type_id', (int) $this->request->service_type_id))
+            ->when($this->request->filled('status'), fn ($q) => $q->where('status', $this->request->status))
+            ->when($this->request->filled('request_mode'), fn ($q) => $q->where('request_mode', $this->request->request_mode))
+            ->when($this->request->filled('queue_stage'), fn ($q) => $q->where('queue_stage', $this->request->queue_stage))
+            ->when($this->request->filled('from'), fn ($q) => $q->whereDate('created_at', '>=', $this->request->from))
+            ->when($this->request->filled('to'), fn ($q) => $q->whereDate('created_at', '<=', $this->request->to))
+            ->latest('created_at')
+            ->get()
+            ->map(function (ServiceRequest $row) {
+                return [
+                    $row->token_code,
+                    $row->student_id ?? 'Guest',
+                    optional($row->office)->name ?? 'N/A',
+                    optional($row->serviceType)->name ?? 'N/A',
+                    strtoupper((string) $row->request_mode),
+                    $row->status,
+                    strtoupper(str_replace('_', ' ', (string) $row->queue_stage)),
+                    optional($row->queued_at)?->format('Y-m-d H:i') ?? optional($row->created_at)?->format('Y-m-d H:i'),
+                    optional($row->updated_at)?->format('Y-m-d H:i'),
+                ];
+            });
     }
 
     public function getCsvSettings(): array

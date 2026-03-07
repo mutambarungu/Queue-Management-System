@@ -11,6 +11,8 @@
                     <div class="nk-block-head-content">
                         <div class="d-flex justify-content-between align-items-center mb-4">
                             <h4 class="nk-block-title">All Student Service Requests</h4>
+                            <div class="d-flex flex-wrap gap-2 align-items-center">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -42,7 +44,6 @@
                                     <th class="nk-tb-col">Office</th>
                                     <th class="nk-tb-col">Service Type</th>
                                     <th class="nk-tb-col">Status</th>
-                                    <th class="nk-tb-col">Priority</th>
                                     <th class="nk-tb-col">Waiting Time</th>
                                     <th class="nk-tb-col">Submitted On</th>
                                     <th class="nk-tb-col nk-tb-col-tools text-end">Action</th>
@@ -70,11 +71,6 @@
                                         @endphp
                                         <span class="badge bg-{{ $badge }}">{{ $req->status }}</span>
                                     </td>
-                                    <td class="nk-tb-col">
-                                        <span class="badge bg-{{ $req->priority === 'urgent' ? 'danger' : 'secondary' }}">
-                                            {{ ucfirst($req->priority) }}
-                                        </span>
-                                    </td>
                                     <td class="nk-tb-col">{{ $req->waiting_time }}</td>
                                     <td class="nk-tb-col">{{ $req->created_at->format('d M Y h:i A') }}</td>
                                     <td class="nk-tb-col">
@@ -85,7 +81,7 @@
                                 </tr>
                                 @empty
                                 <tr>
-                                    <td colspan="8" class="text-center text-muted">No service requests found.</td>
+                                    <td colspan="9" class="text-center text-muted">No service requests found.</td>
                                 </tr>
                                 @endforelse
                             </tbody>

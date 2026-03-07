@@ -21,25 +21,24 @@
     <!-- QR Codes Table -->
     <div class="card card-bordered card-preview">
         <div class="card-inner">
-        <table class="datatable-init nowrap nk-tb-list nk-tb-ulist"
-                            data-auto-responsive="true">
+        <table class="table table-striped nk-tb-list nk-tb-ulist">
             <thead>
                 <tr class="nk-tb-item nk-tb-head">
                     <th class="nk-tb-col">#</th>
-                    <th class="nk-tb-col">Office</th>
+                    <th class="nk-tb-col">Lane</th>
                     <th class="nk-tb-col">QR Code</th>
                     <th class="nk-tb-col">Actions</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach($offices as $index => $office)
+                @foreach($qrEntries as $index => $entry)
                 <tr class="nk-tb-item">
-                    <td class="nk-tb-col">{{ $index + 1 }}</td>
-                    <td class="nk-tb-col">{{ $office->name }}</td>
-                    <td class="nk-tb-col">{!! $office->qrCode !!}</td>
+                    <td class="nk-tb-col">{{ $qrEntries->firstItem() + $index }}</td>
+                    <td class="nk-tb-col">{{ $entry['lane_label'] }}</td>
+                    <td class="nk-tb-col">{!! $entry['qr_code'] !!}</td>
                     <td class="nk-tb-col">
                         <div class="btn-group" role="group">
-                            <a href="{{ route('admin.offices.qrcodes.download', $office->id) }}" class="btn btn-sm btn-success">
+                            <a href="{{ route('admin.offices.qrcodes.download', ['office' => $entry['office_id'], 'sub_office_id' => $entry['sub_office_id']]) }}" class="btn btn-sm btn-success">
                                 <i class="bi bi-download"></i>Download
                             </a>
                         </div>
@@ -48,6 +47,9 @@
                 @endforeach
             </tbody>
         </table>
+        <div class="mt-3">
+            {{ $qrEntries->links() }}
+        </div>
     </div>
 
 </div>

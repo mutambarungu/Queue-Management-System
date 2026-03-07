@@ -13,8 +13,20 @@
 
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
+        <link rel="stylesheet" href="{{ asset('assets/css/dark-mode-overrides.css') }}">
+        <script>
+            (function () {
+                const mode = localStorage.getItem('uqs-theme');
+                if (mode === 'dark') {
+                    document.documentElement.classList.add('dark-mode');
+                }
+            })();
+        </script>
     </head>
     <body class="font-sans text-gray-900 antialiased">
+        <button id="themeToggleGuest" class="theme-toggle-btn" style="position:fixed;top:12px;right:12px;z-index:1200;border:1px solid #ced4da;background:#fff;">
+            <span id="themeToggleGuestIcon">🌙</span>
+        </button>
         <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100">
             <div>
                 <a href="/">
@@ -26,5 +38,22 @@
                 {{ $slot }}
             </div>
         </div>
+        <script>
+            (function () {
+                const isDark = localStorage.getItem('uqs-theme') === 'dark';
+                document.body.classList.toggle('dark-mode', isDark);
+                document.documentElement.classList.toggle('dark-mode', isDark);
+                const icon = document.getElementById('themeToggleGuestIcon');
+                if (icon) icon.textContent = isDark ? '☀️' : '🌙';
+            })();
+
+            document.getElementById('themeToggleGuest')?.addEventListener('click', function () {
+                const willBeDark = !document.body.classList.contains('dark-mode');
+                document.body.classList.toggle('dark-mode', willBeDark);
+                document.documentElement.classList.toggle('dark-mode', willBeDark);
+                localStorage.setItem('uqs-theme', willBeDark ? 'dark' : 'light');
+                document.getElementById('themeToggleGuestIcon').textContent = willBeDark ? '☀️' : '🌙';
+            });
+        </script>
     </body>
 </html>

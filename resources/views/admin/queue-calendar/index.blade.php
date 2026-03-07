@@ -153,32 +153,90 @@
                             <h6>Holidays</h6>
                             <p class="text-muted mb-2">
                                 <i class="bi bi-flag-fill text-danger me-1"></i>
-                                Sabbath day is automatically flagged as a holiday/closure. Add dated holidays below.
+                                Sabbath day is automatically flagged as a holiday/closure.
                             </p>
-                            <div id="holidaysContainer">
-                                @php
-                                    $holidayInputRows = old('holidays', $holidayRows);
-                                    if (empty($holidayInputRows)) {
-                                        $holidayInputRows = [['date' => '', 'name' => '']];
-                                    }
-                                @endphp
-                                @foreach($holidayInputRows as $i => $holiday)
-                                    <div class="row g-2 mb-2 holiday-row">
-                                        <div class="col-md-1 col-12 d-flex align-items-center text-danger">
-                                            <i class="bi bi-flag-fill me-1"></i>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <input type="date" class="form-control" name="holidays[{{ $i }}][date]" value="{{ $holiday['date'] ?? '' }}">
-                                        </div>
-                                        <div class="col-md-7">
-                                            <input type="text" class="form-control" name="holidays[{{ $i }}][name]" value="{{ $holiday['name'] ?? '' }}" placeholder="Holiday name">
+                            @php
+                                $holidayInputRows = old('holidays', $holidayRows);
+                                if (empty($holidayInputRows)) {
+                                    $holidayInputRows = [['date' => '', 'name' => '']];
+                                }
+
+                                $holidaySummaryRows = collect($holidayInputRows)
+                                    ->filter(fn ($row) => filled($row['date'] ?? null))
+                                    ->map(function ($row) {
+                                        $date = (string) ($row['date'] ?? '');
+                                        $name = trim((string) ($row['name'] ?? '')) ?: 'Holiday';
+                                        return ['date' => $date, 'name' => $name];
+                                    })
+                                    ->sortBy('date')
+                                    ->values();
+
+                                $nowDate = \Illuminate\Support\Carbon::now($resolved['timezone'])->toDateString();
+                                $activeHoliday = $holidaySummaryRows->firstWhere('date', $nowDate);
+                                $nextHoliday = $holidaySummaryRows->first(fn ($row) => $row['date'] > $nowDate);
+                            @endphp
+
+                            <div class="border rounded p-3 mb-3 bg-light-subtle">
+                                <div class="row g-3">
+                                    <div class="col-12 col-md-4">
+                                        <div class="border rounded p-3 h-100">
+                                            <div class="text-muted small mb-1">Today</div>
+                                            @if($activeHoliday)
+                                                <div class="fw-semibold text-danger text-break">
+                                                    <i class="bi bi-flag-fill me-1"></i>{{ $activeHoliday['name'] }}
+                                                </div>
+                                                <div class="small text-muted">{{ $activeHoliday['date'] }}</div>
+                                            @else
+                                                <div class="fw-semibold">No dated holiday today</div>
+                                            @endif
                                         </div>
                                     </div>
-                                @endforeach
+                                    <div class="col-12 col-md-4">
+                                        <div class="border rounded p-3 h-100">
+                                            <div class="text-muted small mb-1">Next Holiday</div>
+                                            @if($nextHoliday)
+                                                <div class="fw-semibold text-break">{{ $nextHoliday['name'] }}</div>
+                                                <div class="small text-muted">{{ $nextHoliday['date'] }}</div>
+                                            @else
+                                                <div class="fw-semibold text-muted">None scheduled</div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                    <div class="col-12 col-md-4">
+                                        <div class="border rounded p-3 h-100">
+                                            <div class="text-muted small mb-1">Configured Holidays</div>
+                                            <div class="fw-semibold fs-5">{{ $holidaySummaryRows->count() }}</div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <button type="button" class="btn btn-outline-secondary btn-sm" id="addHolidayBtn">Add Holiday</button>
 
-                            <div class="mt-4">
+                            <div class="d-flex flex-wrap gap-2 mb-2">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="toggleHolidayListBtn">Manage Holiday List</button>
+                                <button type="button" class="btn btn-outline-primary btn-sm" id="addHolidayBtn">Add Holiday</button>
+                            </div>
+                            <div id="holidaysEditor" class="{{ $errors->has('holidays') ? '' : 'd-none' }}">
+                                <div id="holidaysContainer">
+                                    @foreach($holidayInputRows as $i => $holiday)
+                                        <div class="row g-2 mb-2 holiday-row">
+                                            <div class="col-md-1 col-12 d-flex align-items-center text-danger">
+                                                <i class="bi bi-flag-fill me-1"></i>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <input type="date" class="form-control" name="holidays[{{ $i }}][date]" value="{{ $holiday['date'] ?? '' }}">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <input type="text" class="form-control" name="holidays[{{ $i }}][name]" value="{{ $holiday['name'] ?? '' }}" placeholder="Holiday name">
+                                            </div>
+                                            <div class="col-md-2 d-grid">
+                                                <button type="button" class="btn btn-outline-danger btn-sm remove-holiday-row">Delete</button>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            <div class="mt-4 {{ $errors->has('holidays') ? '' : 'd-none' }}" id="saveCalendarActions">
                                 <button type="submit" class="btn btn-primary">Save Calendar Settings</button>
                             </div>
                         </form>
@@ -261,20 +319,76 @@ document.addEventListener('DOMContentLoaded', function () {
         specialIndex++;
     });
 
+    const holidaysEditor = document.getElementById('holidaysEditor');
+    const toggleHolidayListBtn = document.getElementById('toggleHolidayListBtn');
     const holidaysContainer = document.getElementById('holidaysContainer');
     const addHolidayBtn = document.getElementById('addHolidayBtn');
+    const saveCalendarActions = document.getElementById('saveCalendarActions');
     let holidayIndex = holidaysContainer.querySelectorAll('.holiday-row').length;
 
+    function showSaveButtonForHolidayChanges() {
+        saveCalendarActions.classList.remove('d-none');
+    }
+
+    toggleHolidayListBtn.addEventListener('click', function () {
+        holidaysEditor.classList.toggle('d-none');
+        toggleHolidayListBtn.textContent = holidaysEditor.classList.contains('d-none')
+            ? 'Manage Holiday List'
+            : 'Hide Holiday List';
+    });
+
     addHolidayBtn.addEventListener('click', function () {
+        holidaysEditor.classList.remove('d-none');
+        toggleHolidayListBtn.textContent = 'Hide Holiday List';
+        showSaveButtonForHolidayChanges();
         const html = `
             <div class=\"row g-2 mb-2 holiday-row\">
                 <div class=\"col-md-1 col-12 d-flex align-items-center text-danger\"><i class=\"bi bi-flag-fill me-1\"></i></div>
-                <div class=\"col-md-4\"><input type=\"date\" class=\"form-control\" name=\"holidays[${holidayIndex}][date]\"></div>
-                <div class=\"col-md-7\"><input type=\"text\" class=\"form-control\" name=\"holidays[${holidayIndex}][name]\" placeholder=\"Holiday name\"></div>
+                <div class=\"col-md-3\"><input type=\"date\" class=\"form-control\" name=\"holidays[${holidayIndex}][date]\"></div>
+                <div class=\"col-md-6\"><input type=\"text\" class=\"form-control\" name=\"holidays[${holidayIndex}][name]\" placeholder=\"Holiday name\"></div>
+                <div class=\"col-md-2 d-grid\"><button type=\"button\" class=\"btn btn-outline-danger btn-sm remove-holiday-row\">Delete</button></div>
             </div>
         `;
         holidaysContainer.insertAdjacentHTML('beforeend', html);
         holidayIndex++;
+    });
+
+    holidaysContainer.addEventListener('input', function (event) {
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement)) {
+            return;
+        }
+        if (target.name.includes('[date]') || target.name.includes('[name]')) {
+            showSaveButtonForHolidayChanges();
+        }
+    });
+
+    holidaysContainer.addEventListener('click', function (event) {
+        const target = event.target;
+        if (!(target instanceof HTMLElement) || !target.classList.contains('remove-holiday-row')) {
+            return;
+        }
+
+        const row = target.closest('.holiday-row');
+        if (!row) {
+            return;
+        }
+
+        row.remove();
+        showSaveButtonForHolidayChanges();
+
+        if (holidaysContainer.querySelectorAll('.holiday-row').length === 0) {
+            const fallbackRow = `
+                <div class=\"row g-2 mb-2 holiday-row\">
+                    <div class=\"col-md-1 col-12 d-flex align-items-center text-danger\"><i class=\"bi bi-flag-fill me-1\"></i></div>
+                    <div class=\"col-md-3\"><input type=\"date\" class=\"form-control\" name=\"holidays[${holidayIndex}][date]\"></div>
+                    <div class=\"col-md-6\"><input type=\"text\" class=\"form-control\" name=\"holidays[${holidayIndex}][name]\" placeholder=\"Holiday name\"></div>
+                    <div class=\"col-md-2 d-grid\"><button type=\"button\" class=\"btn btn-outline-danger btn-sm remove-holiday-row\">Delete</button></div>
+                </div>
+            `;
+            holidaysContainer.insertAdjacentHTML('beforeend', fallbackRow);
+            holidayIndex++;
+        }
     });
 
     function bindSpecialRuleBehaviors(ruleElement) {

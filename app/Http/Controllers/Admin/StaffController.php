@@ -44,6 +44,7 @@ class StaffController extends Controller
                     fn ($query) => $query->where('office_id', $request->office_id)
                 ),
             ],
+            'counter_number' => 'nullable|string|max:80',
             'campus' => 'nullable|string|max:255',
             'faculty' => 'nullable|string|max:255',
             'department' => 'nullable|string|max:255',
@@ -76,6 +77,7 @@ class StaffController extends Controller
             'user_id' => $user->id,
             'office_id' => $request->office_id,
             'sub_office_id' => $request->sub_office_id,
+            'counter_number' => $request->counter_number,
             'campus' => $request->campus,
             'faculty' => $isStudentAffairs ? $request->faculty : null,
             'department' => $isStudentAffairs ? $request->department : null,
@@ -104,6 +106,7 @@ class StaffController extends Controller
                     fn ($query) => $query->where('office_id', $request->office_id)
                 ),
             ],
+            'counter_number' => 'nullable|string|max:80',
             'campus' => 'nullable|string|max:255',
             'faculty' => 'nullable|string|max:255',
             'department' => 'nullable|string|max:255',
@@ -136,6 +139,7 @@ class StaffController extends Controller
             'name' => $request->name,
             'office_id' => $request->office_id,
             'sub_office_id' => $request->sub_office_id,
+            'counter_number' => $request->counter_number,
             'campus' => $request->campus,
             'faculty' => $isStudentAffairs ? $request->faculty : null,
             'department' => $isStudentAffairs ? $request->department : null,

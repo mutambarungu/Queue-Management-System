@@ -15,6 +15,11 @@
             </div>
             <div class="nk-header-tools">
                 <ul class="nk-quick-nav">
+                    <li class="me-2">
+                        <a href="#" id="themeToggle" class="btn btn-sm btn-light theme-toggle-btn" title="Toggle theme">
+                            <em class="icon ni ni-moon-fill"></em>
+                        </a>
+                    </li>
 
                     <li class="dropdown user-dropdown"><a href="#" class="dropdown-toggle"
                             data-bs-toggle="dropdown">

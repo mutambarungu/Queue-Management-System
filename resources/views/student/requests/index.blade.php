@@ -29,10 +29,12 @@
                             <thead>
                                 <tr class="nk-tb-item nk-tb-head">
                                     <th class="nk-tb-col">#</th>
+                                    <th class="nk-tb-col">Token</th>
                                     <th class="nk-tb-col">Request No</th>
                                     <th class="nk-tb-col">Office</th>
                                     <th class="nk-tb-col">Service Type</th>
                                     <th class="nk-tb-col">Status</th>
+                                    <th class="nk-tb-col">Queue Stage</th>
                                     <th class="nk-tb-col">Submitted On</th>
                                     <th class="nk-tb-col">Action</th>
                                 </tr>
@@ -42,6 +44,7 @@
                                 @foreach($requests as $index => $req)
                                 <tr class="nk-tb-item">
                                     <td class="nk-tb-col">{{ $index + 1 }}</td>
+                                    <td class="nk-tb-col fw-bold">{{ $req->token_code }}</td>
 
                                     <td class="nk-tb-col fw-bold">
                                         {{ $req->request_number }}
@@ -73,13 +76,26 @@
                                         </span>
                                     </td>
 
+                                    <td class="nk-tb-col">
+                                        <span class="badge bg-light text-dark">
+                                            {{ strtoupper(str_replace('_', ' ', (string) ($req->queue_stage ?? 'waiting'))) }}
+                                        </span>
+                                    </td>
+
                                     <td class="nk-tb-col">{{ $req->created_at->format('d M Y h:i A') }}</td>
 
                                     <td class="nk-tb-col">
-                                        <a href="{{ route('student.requests.show',$req->id) }}"
-                                            class="btn btn-sm btn-outline-dark">
+                                        <a href="{{ route('student.requests.show',$req->id) }}" class="btn btn-sm btn-outline-dark">
                                             View
                                         </a>
+                                        @if(
+                                            in_array($req->status, ['Submitted', 'In Review', 'Awaiting Student Response', 'Appointment Scheduled'], true)
+                                            && !in_array((string) $req->queue_stage, ['completed', 'no_show'], true)
+                                        )
+                                            <a href="{{ route('student.requests.track-queue', $req->id) }}" class="btn btn-sm btn-outline-primary">
+                                                Track Live Queue
+                                            </a>
+                                        @endif
                                     </td>
                                 </tr>
                                 @endforeach

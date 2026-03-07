@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const subOfficeSelect = document.getElementById('sub_office');
     const serviceSelect = document.getElementById('service_type');
     const descriptionInput = document.getElementById('description');
-    const oldSubOfficeId = "{{ old('sub_office_id') }}";
+    const oldSubOfficeId = "{{ old('sub_office_id', request('sub_office_id')) }}";
     const oldServiceTypeId = "{{ old('service_type_id') }}";
     const otherServiceTypeValue = '__other__';
 
@@ -153,6 +153,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function renderServiceTypes(officeId, selectedService = null) {
+        if (!officeId) {
+            serviceSelect.innerHTML = '<option value="">Select Service Type</option>';
+            serviceSelect.disabled = true;
+            serviceSelect.value = '';
+            return;
+        }
+
         const subOffices = officeSubOfficeMap[officeId] || [];
         const allTypes = officeServiceTypeMap[officeId] || [];
         const hasSubOffices = subOffices.length > 0;
@@ -164,6 +171,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         serviceSelect.innerHTML = '<option value="">Select Service Type</option>';
 
+        if (hasSubOffices && !selectedSubOffice) {
+            serviceSelect.innerHTML = '<option value="">Select Sub-office first</option>';
+            serviceSelect.disabled = true;
+            return;
+        }
+
         filtered.forEach(type => {
             const option = document.createElement('option');
             option.value = type.id;
@@ -172,11 +185,17 @@ document.addEventListener('DOMContentLoaded', function() {
             serviceSelect.appendChild(option);
         });
 
-        const otherOption = document.createElement('option');
-        otherOption.value = otherServiceTypeValue;
-        otherOption.textContent = 'Other (Not specified)';
-        otherOption.selected = String(selectedService) === otherServiceTypeValue;
-        serviceSelect.appendChild(otherOption);
+        const hasExistingOther = filtered.some(type =>
+            String(type.name || '').trim().toLowerCase() === 'other (not specified)'
+        );
+
+        if (!hasExistingOther) {
+            const otherOption = document.createElement('option');
+            otherOption.value = otherServiceTypeValue;
+            otherOption.textContent = 'Other (Not specified)';
+            otherOption.selected = String(selectedService) === otherServiceTypeValue;
+            serviceSelect.appendChild(otherOption);
+        }
 
         serviceSelect.disabled = false;
     }

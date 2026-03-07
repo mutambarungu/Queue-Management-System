@@ -2,8 +2,20 @@
 
 @section('content')
 <div class="container mt-4">
+    @php
+        $fromQueue = request()->boolean('from_queue');
+    @endphp
 
     <h3 class="mb-3">Request Detail: {{ $request->request_number }}</h3>
+    @if($fromQueue)
+        <div class="mb-3">
+            <a href="{{ route('staff.queue.operations') }}" class="btn btn-outline-primary btn-sm">Back to Queue Operations</a>
+        </div>
+    @endif
+    <p class="mb-3"><span class="badge bg-dark">Token: {{ $request->token_code }}</span></p>
+    <p class="mb-3">
+        <span class="badge bg-info text-dark">Queue Stage: {{ ucfirst(str_replace('_', ' ', $request->queue_stage ?? 'waiting')) }}</span>
+    </p>
 
     @if(session('success'))
     <div class="alert alert-success">{{ session('success') }}</div>
@@ -100,12 +112,6 @@
                     {{ $request->status }}
                 </span>
             </p>
-            <p>
-                <strong>Priority:</strong>
-                <span class="badge bg-{{ $request->priority === 'urgent' ? 'danger' : 'secondary' }}">
-                    {{ ucfirst($request->priority ?? 'normal') }}
-                </span>
-            </p>
 
         </div>
     </div>
@@ -131,9 +137,24 @@
     <!-- Reply Form -->
     <div class="card">
         <div class="card-body">
+            @if($request->queue_stage === 'called')
+                <div class="d-flex gap-2 mb-3">
+                    <form action="{{ route('staff.requests.mark-serving', $request->id) }}" method="POST">
+                        @csrf
+                        <button class="btn btn-success btn-sm">Mark As Serving</button>
+                    </form>
+                    <form action="{{ route('staff.requests.recall', $request->id) }}" method="POST">
+                        @csrf
+                        <button class="btn btn-warning btn-sm">Recall Once</button>
+                    </form>
+                </div>
+            @endif
             <h5>Send Reply / Update Status</h5>
             <form action="{{ route('staff.requests.reply', $request->id) }}" method="POST" enctype="multipart/form-data">
                 @csrf
+                @if($fromQueue)
+                    <input type="hidden" name="from_queue" value="1">
+                @endif
 
                 <div class="mb-3">
                     <label for="message" class="form-label">Message</label>
@@ -157,15 +178,31 @@
                     </select>
                 </div>
 
+                <button type="submit" class="btn btn-primary">Send Reply</button>
+            </form>
+        </div>
+    </div>
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5>Reassign Request</h5>
+            <form action="{{ route('staff.requests.reassign', $request->id) }}" method="POST">
+                @csrf
                 <div class="mb-3">
-                    <label for="priority" class="form-label">Priority</label>
-                    <select name="priority" class="form-select" required>
-                        <option value="normal" {{ $request->priority=='normal'?'selected':'' }}>Normal</option>
-                        <option value="urgent" {{ $request->priority=='urgent'?'selected':'' }}>Urgent</option>
+                    <label class="form-label">New Office</label>
+                    <select class="form-select" name="new_office_id" id="staff_reassign_office" required>
+                        <option value="">Select office</option>
+                        @foreach($reassignOffices as $office)
+                            <option value="{{ $office->id }}">{{ $office->name }}</option>
+                        @endforeach
                     </select>
                 </div>
-
-                <button type="submit" class="btn btn-primary">Send Reply</button>
+                <div class="mb-3 d-none" id="staff_reassign_sub_office_wrap">
+                    <label class="form-label">Sub-office</label>
+                    <select class="form-select" name="new_sub_office_id" id="staff_reassign_sub_office">
+                        <option value="">Select sub-office</option>
+                    </select>
+                </div>
+                <button class="btn btn-outline-primary">Reassign</button>
             </form>
         </div>
     </div>
@@ -237,4 +274,37 @@
     </div>
 
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const officeSelect = document.getElementById('staff_reassign_office');
+    const subWrap = document.getElementById('staff_reassign_sub_office_wrap');
+    const subSelect = document.getElementById('staff_reassign_sub_office');
+    const subOfficeMap = @json($reassignSubOfficeMap);
+
+    function renderSubOffices() {
+        const officeId = officeSelect.value;
+        const items = subOfficeMap[officeId] || [];
+        subSelect.innerHTML = '<option value="">Select sub-office</option>';
+
+        if (!items.length) {
+            subWrap.classList.add('d-none');
+            subSelect.required = false;
+            return;
+        }
+
+        items.forEach(function (item) {
+            const option = document.createElement('option');
+            option.value = item.id;
+            option.textContent = item.name;
+            subSelect.appendChild(option);
+        });
+
+        subWrap.classList.remove('d-none');
+        subSelect.required = true;
+    }
+
+    officeSelect.addEventListener('change', renderSubOffices);
+    renderSubOffices();
+});
+</script>
 @endsection

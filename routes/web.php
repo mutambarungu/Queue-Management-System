@@ -14,7 +14,10 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicQueueController;
 use App\Http\Controllers\Staff\StaffDashboardController;
+use App\Http\Controllers\Staff\QueueOperationsController as StaffQueueOperationsController;
+use App\Http\Controllers\Staff\QueueReportController as StaffQueueReportController;
 use App\Http\Controllers\Staff\StaffRequestController;
+use App\Http\Controllers\Admin\QueueOperationsController as AdminQueueOperationsController;
 use App\Http\Controllers\Student\ServiceRequestController;
 use App\Http\Controllers\Student\StudentDashboardController;
 use App\Models\Faq;
@@ -34,6 +37,9 @@ Route::get('/', function () {
 // });
 
 Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard/live-stats', [DashboardController::class, 'liveStats'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.live-stats');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -42,8 +48,22 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::get('/api/service-types/{office}', function ($officeId) {
-    return \App\Models\ServiceType::where('office_id', $officeId)->get();
+    return \App\Models\ServiceType::query()
+        ->where('office_id', $officeId)
+        ->orderBy('name')
+        ->get()
+        ->unique(fn (\App\Models\ServiceType $serviceType) => \App\Models\ServiceType::normalizeName($serviceType->name))
+        ->values();
 });
+
+// Public QR queue flow (works for students and non-students).
+Route::get('/queue/join', [ServiceRequestController::class, 'showJoinQueueFromQr'])
+    ->middleware('signed:relative')
+    ->name('queue.join.form');
+Route::post('/queue/join', [ServiceRequestController::class, 'storeJoinQueueFromQr'])
+    ->name('queue.join.store');
+Route::get('/queue/live', [ServiceRequestController::class, 'liveQueue'])
+    ->name('queue.live');
 
 Route::middleware(['auth', 'verified'])->group(function () {
 
@@ -68,10 +88,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/student/dashboard', [StudentDashboardController::class, 'dashboard']);
 
         Route::prefix('student')->name('student.')->group(function () {
+            Route::get('queue/live', [ServiceRequestController::class, 'liveQueue'])
+                ->name('queue.live');
             Route::get('requests', [ServiceRequestController::class, 'index'])->name('requests.index');
             Route::get('requests/create', [ServiceRequestController::class, 'create'])->name('requests.create');
             Route::post('requests', [ServiceRequestController::class, 'store'])->name('requests.store');
             Route::get('requests/{request}', [ServiceRequestController::class, 'show'])->name('requests.show');
+            Route::get('requests/{request}/track-queue', [ServiceRequestController::class, 'trackQueue'])->name('requests.track-queue');
             Route::post('requests/{request}/reply', [ServiceRequestController::class, 'reply'])->name('requests.reply');
             Route::get('appointments', [AppointmentController::class, 'studentIndex'])->name('appointments.index');
             Route::patch('appointments/{appointment}/cancel', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
@@ -86,6 +109,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('role:staff')->group(function () {
         Route::get('/staff/dashboard', [StaffDashboardController::class, 'dashboard']);
         Route::prefix('staff')->name('staff.')->group(function () {
+            Route::get('queue/operations', [StaffQueueOperationsController::class, 'index'])
+                ->name('queue.operations');
+            Route::get('queue/operations/status', [StaffQueueOperationsController::class, 'status'])
+                ->name('queue.operations.status');
+            Route::post('queue/walk-ins', [StaffQueueOperationsController::class, 'storeWalkIn'])
+                ->name('queue.walk-ins.store');
+            Route::post('queue/walk-ins/toggle', [StaffQueueOperationsController::class, 'toggleWalkIns'])
+                ->name('queue.walk-ins.toggle');
+            Route::post('queue/operations/toggle', [StaffQueueOperationsController::class, 'toggleQueueOperations'])
+                ->name('queue.operations.toggle');
+            Route::get('reports', [StaffQueueReportController::class, 'index'])
+                ->name('reports.index');
+            Route::get('reports/download/pdf', [StaffQueueReportController::class, 'downloadPdf'])
+                ->name('reports.pdf');
+            Route::get('reports/download/excel', [StaffQueueReportController::class, 'downloadExcel'])
+                ->name('reports.excel');
+            Route::get('reports/download/csv', [StaffQueueReportController::class, 'downloadCsv'])
+                ->name('reports.csv');
             // Define staff-specific routes here
             Route::get('requests', [StaffRequestController::class, 'index'])->name('requests.index');
             Route::get('requests/{request}', [StaffRequestController::class, 'show'])
@@ -93,6 +134,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
             Route::post('requests/{request}/reply', [StaffRequestController::class, 'reply'])
                 ->name('requests.reply');
+            Route::post('requests/{serviceRequest}/reassign', [StaffRequestController::class, 'reassign'])
+                ->name('requests.reassign');
+            Route::post('queue/call-next', [StaffRequestController::class, 'callNext'])
+                ->name('queue.call-next');
+            Route::post('queue/advance-next', [StaffRequestController::class, 'advanceToNext'])
+                ->name('queue.advance-next');
+            Route::post('requests/{request}/recall', [StaffRequestController::class, 'recall'])
+                ->name('requests.recall');
+            Route::post('requests/{request}/mark-serving', [StaffRequestController::class, 'markServing'])
+                ->name('requests.mark-serving');
 
             Route::post('requests/{request}/status', [StaffRequestController::class, 'updateStatus'])
                 ->name('requests.status');
@@ -129,6 +180,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/admin/dashboard', [DashboardController::class, 'dashboard']);
 
         Route::prefix('admin')->name('admin.')->group(function () {
+            Route::get('queue/operations', [AdminQueueOperationsController::class, 'index'])
+                ->name('queue.operations');
+            Route::get('queue/operations/status', [AdminQueueOperationsController::class, 'status'])
+                ->name('queue.operations.status');
             Route::get('users', [UserController::class, 'index'])->name('users.index');
             Route::post('users', [UserController::class, 'store'])->name('users.store');
             Route::put('users/{user}', [UserController::class, 'update'])->name('users.update');
@@ -174,6 +229,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::put('requests/{request}', [AdminServiceRequestController::class, 'update'])->name('requests.update');
             Route::delete('requests/{request}', [AdminServiceRequestController::class, 'destroy'])->name('requests.destroy');
             Route::post('requests/{request}/reply', [AdminServiceRequestController::class, 'reply'])->name('requests.reply');
+            Route::post('requests/{serviceRequest}/reassign', [AdminServiceRequestController::class, 'reassign'])->name('requests.reassign');
 
             Route::post('requests/{serviceRequest}/appointment', [AppointmentController::class, 'store'])->name('appointments.store');
         });
@@ -197,6 +253,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('queue-calendar', [QueueCalendarSettingsController::class, 'index'])->name('queue-calendar.index');
             Route::put('queue-calendar', [QueueCalendarSettingsController::class, 'update'])->name('queue-calendar.update');
+            Route::get('lane-policies', [QueueCalendarSettingsController::class, 'lanePolicies'])->name('lane-policies.index');
+            Route::put('lane-policies', [QueueCalendarSettingsController::class, 'updateLanePolicies'])->name('lane-policies.update');
         });
 
         Route::prefix('admin')->name('admin.')->group(function () {
@@ -219,6 +277,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
 Route::get('/queue/{office}', [PublicQueueController::class, 'show'])
     ->name('queue.public.display');
+Route::get('/queue/{office}/status', [PublicQueueController::class, 'status'])
+    ->name('queue.public.status');
 
 Route::get('/student/requests/{request}/queue-status', [ServiceRequestController::class, 'status'])
     ->name('student.requests.queueStatus');

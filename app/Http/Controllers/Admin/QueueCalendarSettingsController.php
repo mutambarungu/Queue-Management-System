@@ -7,6 +7,7 @@ use App\Models\Office;
 use App\Models\QueueCalendarSetting;
 use App\Support\QueueBusinessCalendar;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class QueueCalendarSettingsController extends Controller
 {
@@ -39,6 +40,22 @@ class QueueCalendarSettingsController extends Controller
             'campuses' => $campuses,
             'holidayRows' => $holidayRows,
             'specialRules' => $specialRules,
+        ]);
+    }
+
+    public function lanePolicies()
+    {
+        $resolved = QueueBusinessCalendar::settings();
+        $offices = Office::with('subOffices')->orderBy('name')->get(['id', 'name']);
+        $officesData = $offices->map(fn ($office) => [
+            'id' => $office->id,
+            'name' => $office->name,
+        ])->values();
+
+        return view('admin.queue-calendar.lane-policies', [
+            'offices' => $offices,
+            'officesData' => $officesData,
+            'lanePolicies' => $resolved['lane_policies'] ?? [],
         ]);
     }
 
@@ -152,5 +169,96 @@ class QueueCalendarSettingsController extends Controller
         QueueBusinessCalendar::clearCache();
 
         return back()->with('success', 'Queue calendar settings updated successfully.');
+    }
+
+    public function updateLanePolicies(Request $request)
+    {
+        $existingPolicies = QueueCalendarSetting::query()->first()?->lane_policies ?? [];
+        $lanePolicies = $this->extractLanePolicies($request, is_array($existingPolicies) ? $existingPolicies : []);
+
+        $settings = QueueCalendarSetting::query()->firstOrNew();
+        $settings->lane_policies = $lanePolicies;
+        $settings->save();
+
+        QueueBusinessCalendar::clearCache();
+
+        return back()->with('success', 'Lane policies updated successfully.');
+    }
+
+    private function extractLanePolicies(Request $request, array $existingPolicies = []): array
+    {
+        $lanePolicies = [];
+        $existingMap = collect($existingPolicies)
+            ->filter(fn ($policy) => is_array($policy) && !empty($policy['office_id']))
+            ->keyBy(function ($policy) {
+                $sub = filled($policy['sub_office_id'] ?? null) ? (int) $policy['sub_office_id'] : 0;
+                return ((int) $policy['office_id']) . ':' . $sub;
+            });
+
+        foreach ((array) $request->input('lane_policies', []) as $policy) {
+            $rawOfficeId = $policy['office_id'] ?? null;
+            $rawSubOfficeId = $policy['sub_office_id'] ?? null;
+            $rawAppointmentQuota = $policy['appointment_quota'] ?? null;
+            $rawOnlineQuota = $policy['online_quota'] ?? null;
+            $rawWalkInQuota = $policy['walk_in_quota'] ?? null;
+            $rawRecallTimeout = $policy['recall_timeout_seconds'] ?? null;
+
+            $isEmpty = blank($rawOfficeId)
+                && blank($rawSubOfficeId)
+                && blank($rawAppointmentQuota)
+                && blank($rawOnlineQuota)
+                && blank($rawWalkInQuota)
+                && blank($rawRecallTimeout);
+            if ($isEmpty) {
+                continue;
+            }
+
+            $officeId = (int) $rawOfficeId;
+            $subOfficeId = filled($rawSubOfficeId) ? (int) $rawSubOfficeId : null;
+            $appointmentQuota = (int) ($rawAppointmentQuota ?: 1);
+            $onlineQuota = (int) ($rawOnlineQuota ?: 1);
+            $walkInQuota = (int) ($rawWalkInQuota ?: 2);
+            $recallTimeout = (int) ($rawRecallTimeout ?: 90);
+            $mapKey = $officeId . ':' . ($subOfficeId ?? 0);
+            $existing = $existingMap->get($mapKey, []);
+            $walkInEnabled = filter_var(
+                $policy['walk_in_enabled'] ?? ($existing['walk_in_enabled'] ?? true),
+                FILTER_VALIDATE_BOOL,
+                FILTER_NULL_ON_FAILURE
+            );
+            $queueOperationsEnabled = filter_var(
+                $policy['queue_operations_enabled'] ?? ($existing['queue_operations_enabled'] ?? true),
+                FILTER_VALIDATE_BOOL,
+                FILTER_NULL_ON_FAILURE
+            );
+
+            if (!$officeId) {
+                throw ValidationException::withMessages([
+                    'lane_policies' => 'Each lane policy must have an office selected.',
+                ]);
+            }
+
+            if ($subOfficeId) {
+                $exists = Office::find($officeId)?->subOffices()->whereKey($subOfficeId)->exists();
+                if (!$exists) {
+                    throw ValidationException::withMessages([
+                        'lane_policies' => 'Selected sub-office does not belong to selected office.',
+                    ]);
+                }
+            }
+
+            $lanePolicies[] = [
+                'office_id' => $officeId,
+                'sub_office_id' => $subOfficeId,
+                'appointment_quota' => max(1, $appointmentQuota),
+                'online_quota' => max(1, $onlineQuota),
+                'walk_in_quota' => max(1, $walkInQuota),
+                'recall_timeout_seconds' => max(15, $recallTimeout),
+                'walk_in_enabled' => $walkInEnabled !== false,
+                'queue_operations_enabled' => $queueOperationsEnabled !== false,
+            ];
+        }
+
+        return $lanePolicies;
     }
 }

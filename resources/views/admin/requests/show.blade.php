@@ -4,6 +4,7 @@
 <div class="container mt-4">
 
     <h3 class="mb-3">Request Detail: {{ $request->request_number }}</h3>
+    <p class="mb-3"><span class="badge bg-dark">Token: {{ $request->token_code }}</span></p>
 
     @if(session('success'))
     <div class="alert alert-success">{{ session('success') }}</div>
@@ -20,6 +21,30 @@
             </p>
             <p><strong>Email:</strong> {{ $request->student->user->email ?? 'N/A' }}</p>
             <p><strong>Office:</strong> {{ $request->office->name ?? 'N/A' }}</p>
+        </div>
+    </div>
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5>Reassign Request</h5>
+            <form action="{{ route('admin.requests.reassign', $request->id) }}" method="POST">
+                @csrf
+                <div class="mb-3">
+                    <label class="form-label">New Office</label>
+                    <select class="form-select" name="new_office_id" id="admin_reassign_office" required>
+                        <option value="">Select office</option>
+                        @foreach($reassignOffices as $office)
+                            <option value="{{ $office->id }}">{{ $office->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="mb-3 d-none" id="admin_reassign_sub_office_wrap">
+                    <label class="form-label">Sub-office</label>
+                    <select class="form-select" name="new_sub_office_id" id="admin_reassign_sub_office">
+                        <option value="">Select sub-office</option>
+                    </select>
+                </div>
+                <button class="btn btn-outline-primary">Reassign</button>
+            </form>
         </div>
     </div>
 
@@ -174,4 +199,37 @@
     </div>
 
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const officeSelect = document.getElementById('admin_reassign_office');
+    const subWrap = document.getElementById('admin_reassign_sub_office_wrap');
+    const subSelect = document.getElementById('admin_reassign_sub_office');
+    const subOfficeMap = @json($reassignSubOfficeMap);
+
+    function renderSubOffices() {
+        const officeId = officeSelect.value;
+        const items = subOfficeMap[officeId] || [];
+        subSelect.innerHTML = '<option value="">Select sub-office</option>';
+
+        if (!items.length) {
+            subWrap.classList.add('d-none');
+            subSelect.required = false;
+            return;
+        }
+
+        items.forEach(function (item) {
+            const option = document.createElement('option');
+            option.value = item.id;
+            option.textContent = item.name;
+            subSelect.appendChild(option);
+        });
+
+        subWrap.classList.remove('d-none');
+        subSelect.required = true;
+    }
+
+    officeSelect.addEventListener('change', renderSubOffices);
+    renderSubOffices();
+});
+</script>
 @endsection

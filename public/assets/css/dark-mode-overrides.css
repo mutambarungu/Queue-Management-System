@@ -1,0 +1,115 @@
+html.dark-mode, body.dark-mode {
+    background: #0b1220 !important;
+    color: #dbe4f0 !important;
+}
+
+body.dark-mode .nk-body,
+body.dark-mode .nk-wrap,
+body.dark-mode .nk-content,
+body.dark-mode .bg-lighter,
+body.dark-mode .container,
+body.dark-mode .container-fluid {
+    background: #0b1220 !important;
+    color: #dbe4f0 !important;
+}
+
+body.dark-mode .card,
+body.dark-mode .modal-content,
+body.dark-mode .dropdown-menu,
+body.dark-mode .list-group-item,
+body.dark-mode .table,
+body.dark-mode .table-responsive,
+body.dark-mode .nk-header,
+body.dark-mode .nk-footer {
+    background-color: #111a2d !important;
+    color: #dbe4f0 !important;
+    border-color: #23314d !important;
+}
+
+body.dark-mode .card-header,
+body.dark-mode .card-footer,
+body.dark-mode .table thead th,
+body.dark-mode .table td,
+body.dark-mode .table th,
+body.dark-mode .border,
+body.dark-mode .list-group-item {
+    border-color: #23314d !important;
+}
+
+body.dark-mode .text-muted,
+body.dark-mode .sub-text,
+body.dark-mode .user-status,
+body.dark-mode small.text-muted {
+    color: #9fb1c9 !important;
+}
+
+body.dark-mode .form-control,
+body.dark-mode .form-select,
+body.dark-mode textarea,
+body.dark-mode input {
+    background-color: #0f1729 !important;
+    color: #dbe4f0 !important;
+    border-color: #2b3d5d !important;
+}
+
+body.dark-mode .form-control:focus,
+body.dark-mode .form-select:focus,
+body.dark-mode textarea:focus,
+body.dark-mode input:focus {
+    border-color: #4a90ff !important;
+    box-shadow: 0 0 0 0.15rem rgba(74, 144, 255, 0.25) !important;
+}
+
+body.dark-mode .dropdown-item,
+body.dark-mode .nk-menu-link,
+body.dark-mode .nk-menu-text,
+body.dark-mode .lead-text,
+body.dark-mode p,
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode h5,
+body.dark-mode h6,
+body.dark-mode label,
+body.dark-mode strong,
+body.dark-mode span,
+body.dark-mode li,
+body.dark-mode td,
+body.dark-mode th {
+    color: #dbe4f0 !important;
+}
+
+body.dark-mode .btn-secondary,
+body.dark-mode .btn-outline-dark,
+body.dark-mode .btn-light {
+    background: #1a2741 !important;
+    color: #dbe4f0 !important;
+    border-color: #2c4065 !important;
+}
+
+body.dark-mode .alert-info {
+    background-color: rgba(13, 110, 253, 0.2) !important;
+    color: #c6dcff !important;
+    border-color: rgba(13, 110, 253, 0.35) !important;
+}
+
+body.dark-mode .badge.bg-light {
+    background-color: #20324f !important;
+    color: #dbe4f0 !important;
+}
+
+.theme-toggle-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+body.dark-mode .theme-toggle-btn {
+    background: #1a2741 !important;
+    color: #ffda6a !important;
+    border: 1px solid #334a72 !important;
+}
