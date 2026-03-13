@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Appointment;
 use App\Models\Staff;
 use App\Models\ServiceRequest;
 use App\Models\Office;
+use App\Support\QueueBusinessCalendar;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -147,6 +150,44 @@ class DashboardController extends Controller
             }
         }
 
+        $nextAppointment = null;
+        if ($user->role === 'student' && filled(optional($user->student)->student_number)) {
+            $studentNumber = $user->student->student_number;
+            $nextAppointmentModel = Appointment::query()
+                ->whereHas('serviceRequest', function ($query) use ($studentNumber) {
+                    $query->where('student_id', $studentNumber)
+                        ->whereNull('archived_at')
+                        ->where('status', 'Appointment Scheduled');
+                })
+                ->whereDate('appointment_date', '>=', now()->toDateString())
+                ->with(['serviceRequest.office', 'serviceRequest.serviceType'])
+                ->orderBy('appointment_date')
+                ->orderBy('appointment_time')
+                ->first();
+
+            if ($nextAppointmentModel) {
+                $appointmentDateTime = Carbon::parse(
+                    $nextAppointmentModel->appointment_date . ' ' . $nextAppointmentModel->appointment_time,
+                    QueueBusinessCalendar::settings()['timezone']
+                );
+                $serviceRequest = $nextAppointmentModel->serviceRequest;
+                $officeName = optional(optional($serviceRequest)->office)->name ?? 'Office';
+                $serviceName = optional(optional($serviceRequest)->serviceType)->name ?? 'Service Request';
+                $location = $nextAppointmentModel->location ?: $officeName;
+
+                $nextAppointment = [
+                    'id' => (int) $nextAppointmentModel->id,
+                    'iso' => $appointmentDateTime->toIso8601String(),
+                    'display' => $appointmentDateTime->format('D, M j, Y g:i A'),
+                    'title' => $serviceName . ' Appointment',
+                    'location' => $location,
+                    'office_name' => $officeName,
+                    'service_name' => $serviceName,
+                    'show_url' => route('student.appointments.show', $nextAppointmentModel),
+                ];
+            }
+        }
+
         return [
             'totalRequests' => $totalRequests,
             'pendingRequests' => $pendingRequests,
@@ -162,6 +203,7 @@ class DashboardController extends Controller
             ],
             'realtimeOfficeIds' => $officeIdsForRealtime,
             'studentQueueTracker' => $studentQueueTracker,
+            'nextAppointment' => $nextAppointment,
         ];
     }
 }

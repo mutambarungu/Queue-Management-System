@@ -14,6 +14,6 @@ class RequestAttachment extends Model
 
     public function request()
     {
-        return $this->belongsTo(ServiceRequest::class);
+        return $this->belongsTo(ServiceRequest::class, 'service_request_id');
     }
 }

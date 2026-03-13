@@ -103,31 +103,9 @@
                         </a>
                     </li>
                     <li class="nk-menu-item">
-                        <a href="{{ route('admin.requests.archived') }}"
-                            class="nk-menu-link {{ activeClass('admin.requests.archived') }}">
-                            <span class="nk-menu-icon"><em class="icon ni ni-archive"></em></span>
-                            <span class="nk-menu-text">Archived Requests</span>
-                        </a>
-                    </li>
-
-                    <li class="nk-menu-item">
                         <a href="{{ route('admin.appointments.index') }}" class="nk-menu-link {{ activeClass('admin.appointments.*') }}">
                             <span class="nk-menu-icon"><em class="icon ni ni-calendar-check"></em></span>
                             <span class="nk-menu-text">Appointments</span>
-                        </a>
-                    </li>
-
-                    <li class="nk-menu-item">
-                        <a href="{{ route('admin.faqs.index') }}" class="nk-menu-link {{ activeClass('admin.faqs.*') }}">
-                            <span class="nk-menu-icon"><em class="icon ni ni-help"></em></span>
-                            <span class="nk-menu-text">FAQs</span>
-                        </a>
-                    </li>
-
-                    <li class="nk-menu-item">
-                        <a href="{{ route('admin.reports.index') }}" class="nk-menu-link {{ activeClass('admin.reports.*') }}">
-                            <span class="nk-menu-icon"><em class="icon ni ni-report"></em></span>
-                            <span class="nk-menu-text">Reports</span>
                         </a>
                     </li>
 
@@ -142,6 +120,28 @@
                         <a href="{{ route('admin.queue-calendar.index') }}" class="nk-menu-link {{ activeClass('admin.queue-calendar.*') }}">
                             <span class="nk-menu-icon"><em class="icon ni ni-calendar"></em></span>
                             <span class="nk-menu-text">Queue Calendar</span>
+                        </a>
+                    </li>
+
+                    <li class="nk-menu-item">
+                        <a href="{{ route('admin.reports.index') }}" class="nk-menu-link {{ activeClass('admin.reports.*') }}">
+                            <span class="nk-menu-icon"><em class="icon ni ni-report"></em></span>
+                            <span class="nk-menu-text">Reports</span>
+                        </a>
+                    </li>
+
+                    <li class="nk-menu-item">
+                        <a href="{{ route('admin.requests.archived') }}"
+                            class="nk-menu-link {{ activeClass('admin.requests.archived') }}">
+                            <span class="nk-menu-icon"><em class="icon ni ni-archive"></em></span>
+                            <span class="nk-menu-text">Archived Requests</span>
+                        </a>
+                    </li>
+
+                    <li class="nk-menu-item">
+                        <a href="{{ route('admin.faqs.index') }}" class="nk-menu-link {{ activeClass('admin.faqs.*') }}">
+                            <span class="nk-menu-icon"><em class="icon ni ni-help"></em></span>
+                            <span class="nk-menu-text">FAQs</span>
                         </a>
                     </li>
 
@@ -161,20 +161,6 @@
                     </li>
 
                     <li class="nk-menu-item">
-                        <a href="{{ route('staff.queue.operations') }}" class="nk-menu-link {{ activeClass('staff.queue.operations') }}">
-                            <span class="nk-menu-icon"><em class="icon ni ni-activity-round"></em></span>
-                            <span class="nk-menu-text">Queue Operations</span>
-                        </a>
-                    </li>
-
-                    <li class="nk-menu-item">
-                        <a href="{{ route('staff.reports.index') }}" class="nk-menu-link {{ activeClass('staff.reports.*') }}">
-                            <span class="nk-menu-icon"><em class="icon ni ni-report"></em></span>
-                            <span class="nk-menu-text">Queue Reports</span>
-                        </a>
-                    </li>
-
-                    <li class="nk-menu-item">
                         <a href="{{ route('staff.requests.index') }}" class="nk-menu-link {{ activeClass('staff.requests.*') }}">
                             <span class="nk-menu-icon"><em class="icon ni ni-list-check"></em></span>
                             <span class="nk-menu-text">Assigned Requests</span>
@@ -185,6 +171,20 @@
                         <a href="{{ route('staff.appointments.index') }}" class="nk-menu-link {{ activeClass('staff.appointments.*') }}">
                             <span class="nk-menu-icon"><em class="icon ni ni-calendar-check"></em></span>
                             <span class="nk-menu-text">Appointments</span>
+                        </a>
+                    </li>
+
+                    <li class="nk-menu-item">
+                        <a href="{{ route('staff.queue.operations') }}" class="nk-menu-link {{ activeClass('staff.queue.operations') }}">
+                            <span class="nk-menu-icon"><em class="icon ni ni-activity-round"></em></span>
+                            <span class="nk-menu-text">Queue Operations</span>
+                        </a>
+                    </li>
+
+                    <li class="nk-menu-item">
+                        <a href="{{ route('staff.reports.index') }}" class="nk-menu-link {{ activeClass('staff.reports.*') }}">
+                            <span class="nk-menu-icon"><em class="icon ni ni-report"></em></span>
+                            <span class="nk-menu-text">Queue Reports</span>
                         </a>
                     </li>
 
@@ -200,13 +200,6 @@
                     @if($role === 'student')
                     <li class="nk-menu-heading">
                         <h6 class="overline-title text-primary-alt">Student</h6>
-                    </li>
-
-                    <li class="nk-menu-item">
-                        <a href="{{ route('student.faq.index') }}" class="nk-menu-link {{ activeClass('student.faq.*') }}">
-                            <span class="nk-menu-icon"><em class="icon ni ni-help"></em></span>
-                            <span class="nk-menu-text">FAQ</span>
-                        </a>
                     </li>
 
                     <li class="nk-menu-item">
@@ -233,6 +226,12 @@
                         <a href="{{ route('student.queue.live') }}" class="nk-menu-link {{ activeClass('student.queue.live') }}">
                             <span class="nk-menu-icon"><em class="icon ni ni-monitor"></em></span>
                             <span class="nk-menu-text">Live Queue</span>
+                        </a>
+                    </li>
+                    <li class="nk-menu-item">
+                        <a href="{{ route('student.faq.index') }}" class="nk-menu-link {{ activeClass('student.faq.*') }}">
+                            <span class="nk-menu-icon"><em class="icon ni ni-help"></em></span>
+                            <span class="nk-menu-text">FAQ</span>
                         </a>
                     </li>
                     @endif

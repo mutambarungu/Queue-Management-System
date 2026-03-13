@@ -143,7 +143,7 @@ document.addEventListener('DOMContentLoaded', function() {
         'Faculty of Computing and Information Sciences': [
             'Software Engineering',
             'Information Systems & Management',
-            'Information Technology',
+            'IT-Networking',
             'IT-Multimedia'
         ]
     };

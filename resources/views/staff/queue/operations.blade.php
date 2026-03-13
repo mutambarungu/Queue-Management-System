@@ -312,6 +312,10 @@
         0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, .35); transform: translateY(0); }
         50% { box-shadow: 0 0 0 14px rgba(37, 99, 235, 0); transform: translateY(-1px); }
     }
+    @keyframes floatGlow {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(54, 73, 230, .35), 0 16px 38px rgba(54, 73, 230, .35); transform: translateY(0); }
+        50% { box-shadow: 0 0 0 14px rgba(54, 73, 230, 0), 0 22px 44px rgba(54, 73, 230, .28); transform: translateY(-1px); }
+    }
     @keyframes pausedGlow {
         0%, 100% { box-shadow: 0 0 0 0 rgba(190, 24, 93, .35), 0 14px 28px rgba(190, 24, 93, .12); }
         50% { box-shadow: 0 0 0 14px rgba(190, 24, 93, 0), 0 18px 34px rgba(190, 24, 93, .18); }
@@ -367,18 +371,20 @@
     .queue-float-btn {
         border: none;
         border-radius: 999px;
-        background: linear-gradient(120deg, #22c55e, #16a34a);
+        background: #3649e6;
         color: #fff;
         font-weight: 700;
         letter-spacing: .05em;
         padding: .95rem 1.4rem;
-        box-shadow: 0 16px 38px rgba(22, 163, 74, .35);
+        box-shadow: 0 16px 38px rgba(54, 73, 230, .35), 0 0 18px rgba(54, 73, 230, .55);
+        animation: floatGlow 1.6s ease-in-out infinite;
     }
-    .queue-float-btn:hover { color: #fff; }
+    .queue-float-btn:hover { color: #fff; filter: brightness(1.03); }
     .queue-float-btn:disabled {
         opacity: .55;
         cursor: not-allowed;
         box-shadow: none;
+        animation: none;
     }
     @media (max-width: 991.98px) {
         .queue-ops-header {
@@ -412,6 +418,7 @@
     @media (prefers-reduced-motion: reduce) {
         .queue-next-btn,
         .queue-next-btn:disabled,
+        .queue-float-btn,
         .queue-feed-item,
         .pulse-change {
             animation: none !important;

@@ -89,10 +89,17 @@
             <h5>Request Details</h5>
             <p><strong>Service Type:</strong> {{ $request->serviceType->name ?? 'N/A' }}</p>
             <p><strong>Description:</strong> {{ $request->description }}</p>
-            @if($request->attachment)
-            <p><strong>Attachment:</strong>
-                <a href="{{ asset('storage/'.$request->attachment) }}" target="_blank">View</a>
-            </p>
+            @if($request->attachments->count())
+            <p><strong>Attachments:</strong></p>
+            <ul>
+                @foreach($request->attachments as $att)
+                    <li>
+                        <a href="{{ route('attachments.request', $att) }}" target="_blank" rel="noopener">
+                            {{ $att->file_name }}
+                        </a>
+                    </li>
+                @endforeach
+            </ul>
             @endif
             @php
             $statusClass = match ($request->status) {
@@ -125,7 +132,7 @@
                 <small class="text-muted">{{ $reply->user->name }} | {{ $reply->created_at->format('d M Y h:i A') }}</small>
                 <p>{{ $reply->message }}</p>
                 @if($reply->attachment)
-                <p>Attachment: <a href="{{ asset('storage/'.$reply->attachment) }}" target="_blank">View</a></p>
+                <p>Attachment: <a href="{{ route('attachments.reply', $reply) }}" target="_blank" rel="noopener">View</a></p>
                 @endif
             </div>
             @empty

@@ -106,3 +106,22 @@ body {
         font-size: 16px;
     }
 }
+
+/* Consistent info button color */
+.app-responsive .btn-info {
+    background-color: #4257f5;
+    border-color: #4257f5;
+    color: #fff;
+}
+.app-responsive .btn-info:hover,
+.app-responsive .btn-info:focus {
+    background-color: #3649e6;
+    border-color: #3649e6;
+    color: #fff;
+}
+.app-responsive .btn-info:active,
+.app-responsive .btn-info.active {
+    background-color: #2f41d1;
+    border-color: #2f41d1;
+    color: #fff;
+}

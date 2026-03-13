@@ -428,7 +428,11 @@
                         <p><strong>Attachments:</strong></p>
                         <ul>
                             @foreach($request->attachments as $att)
-                                <li><a href="{{ asset('storage/'.$att->file_path) }}" target="_blank">{{ $att->file_name }}</a></li>
+                                <li>
+                                    <a href="{{ route('attachments.request', $att) }}" target="_blank" rel="noopener">
+                                        {{ $att->file_name }}
+                                    </a>
+                                </li>
                             @endforeach
                         </ul>
                     @endif
@@ -451,7 +455,7 @@
                             <p class="mb-1">{{ $reply->message }}</p>
                             @if($reply->attachment)
                                 <p class="mb-0"><strong>Attachment:</strong>
-                                    <a href="{{ asset('storage/'.$reply->attachment) }}" target="_blank">View</a>
+                                    <a href="{{ route('attachments.reply', $reply) }}" target="_blank" rel="noopener">View</a>
                                 </p>
                             @endif
                         </div>

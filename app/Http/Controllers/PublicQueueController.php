@@ -22,19 +22,37 @@ class PublicQueueController extends Controller
     public function status(Office $office)
     {
         $lanes = $this->buildLanes($office)->map(function ($lane) {
+            $currentToken = optional($lane['current'])->token_code;
+            $calledTokens = $lane['called']->map(fn ($request) => $request->token_code)->filter()->values();
+            $nextTokens = $lane['next']->map(fn ($request) => $request->token_code)->filter()->values();
+            $seenTokens = collect();
+            $isTokenFresh = function ($token) use (&$seenTokens, $currentToken) {
+                if (!$token || $token === $currentToken) {
+                    return false;
+                }
+                if ($seenTokens->contains($token)) {
+                    return false;
+                }
+                $seenTokens->push($token);
+                return true;
+            };
+
+            $calledFiltered = $lane['called']->filter(fn ($request) => $isTokenFresh($request->token_code))->values();
+            $nextFiltered = $lane['next']->filter(fn ($request) => $isTokenFresh($request->token_code))->values();
+
             return [
                 'label' => $lane['label'],
                 'state' => $lane['state'],
                 'current_queue_position' => optional($lane['current'])->queue_position,
                 'current_token' => optional($lane['current'])->token_code,
                 'current_counter' => optional($lane['current'])->serving_counter,
-                'called' => $lane['called']->map(function ($request) {
+                'called' => $calledFiltered->map(function ($request) {
                     return [
                         'queue_position' => $request->queue_position,
                         'token_code' => $request->token_code,
                     ];
                 })->values(),
-                'next' => $lane['next']->map(function ($request) {
+                'next' => $nextFiltered->map(function ($request) {
                     return [
                         'queue_position' => $request->queue_position,
                         'token_code' => $request->token_code,

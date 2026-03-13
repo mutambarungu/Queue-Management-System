@@ -4,7 +4,7 @@
 @section('content')
 <style>
     .student-live-wrap {
-        background: linear-gradient(135deg, #0d6efd, #20c997);
+        background: linear-gradient(135deg, #00225a, #6f86ff);
         border-radius: 18px;
         min-height: calc(100vh - 170px);
         color: #fff;
@@ -38,7 +38,7 @@
         gap: 8px;
         padding: 6px 10px;
         border-radius: 999px;
-        background: rgba(25, 135, 84, 0.18);
+        background: rgba(13, 110, 253, 0.18);
         color: #fff;
         font-weight: 600;
         border: 1px solid rgba(255, 255, 255, 0.25);
@@ -47,13 +47,13 @@
         width: 10px;
         height: 10px;
         border-radius: 50%;
-        background: #7dffb6;
-        box-shadow: 0 0 0 0 rgba(125, 255, 182, 0.75);
+        background: #6f86ff;
+        box-shadow: 0 0 0 0 rgba(111, 134, 255, 0.75);
         animation: pulse 1.8s infinite;
     }
     .live-dot.reconnecting {
-        background: #ffc078;
-        box-shadow: 0 0 0 0 rgba(255, 192, 120, 0.75);
+        background: #a5b4fc;
+        box-shadow: 0 0 0 0 rgba(165, 180, 252, 0.75);
     }
     .sound-pill {
         display: inline-flex;
@@ -110,15 +110,15 @@
     }
     .token-chip.my-token {
         color: #fff;
-        border-color: #67e8f9;
-        background: linear-gradient(145deg, #0d6efd, #14b8a6);
+        border-color: #93c5fd;
+        background: linear-gradient(145deg, #0d6efd, #6f86ff);
         box-shadow: 0 10px 22px rgba(13, 110, 253, .38);
         animation: myTokenGlow 1.8s ease-in-out infinite;
         transform: scale(1.05);
     }
     .lane-current.my-token-current {
-        color: #7dffb6;
-        text-shadow: 0 0 14px rgba(125,255,182,.5);
+        color: #c7d2fe;
+        text-shadow: 0 0 14px rgba(111,134,255,.5);
     }
     .no-lane-card {
         border: none;
@@ -131,7 +131,7 @@
         width: 72px;
         height: 72px;
         border-radius: 50%;
-        border: 2px solid rgba(125, 255, 182, .9);
+        border: 2px solid rgba(111, 134, 255, .9);
         position: relative;
         margin: 0 auto 1rem;
     }
@@ -141,7 +141,7 @@
         position: absolute;
         inset: 10px;
         border-radius: 50%;
-        border: 2px solid rgba(125, 255, 182, .45);
+        border: 2px solid rgba(111, 134, 255, .45);
     }
     .no-lane-radar::after {
         animation: radarPing 1.9s ease-out infinite;
@@ -165,8 +165,8 @@
         font-weight: 800;
         letter-spacing: .06em;
         color: #fff;
-        background: linear-gradient(145deg, #0d6efd, #14b8a6);
-        border: 1px solid #67e8f9;
+        background: linear-gradient(145deg, #0d6efd, #6f86ff);
+        border: 1px solid #93c5fd;
         box-shadow: 0 16px 30px rgba(13,110,253,.45);
         animation: myTokenGlow 1.8s ease-in-out infinite;
     }
@@ -197,16 +197,16 @@
         font-size: .9rem;
     }
     @keyframes pulse {
-        70% { box-shadow: 0 0 0 12px rgba(125, 255, 182, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(125, 255, 182, 0); }
+        70% { box-shadow: 0 0 0 12px rgba(111, 134, 255, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(111, 134, 255, 0); }
     }
     @keyframes laneGlow {
         0% { transform: translateX(-10%); }
         100% { transform: translateX(10%); }
     }
     @keyframes myTokenGlow {
-        0%,100% { box-shadow: 0 10px 22px rgba(13,110,253,.38), 0 0 0 0 rgba(20,184,166,.42); }
-        50% { box-shadow: 0 14px 28px rgba(13,110,253,.45), 0 0 0 12px rgba(20,184,166,0); }
+        0%,100% { box-shadow: 0 10px 22px rgba(13,110,253,.38), 0 0 0 0 rgba(111,134,255,.42); }
+        50% { box-shadow: 0 14px 28px rgba(13,110,253,.45), 0 0 0 12px rgba(111,134,255,0); }
     }
     @keyframes radarPing {
         from { transform: scale(1); opacity: .85; }
@@ -326,11 +326,19 @@
             const current = lane.current_token ?? 'None';
             const called = Array.isArray(lane.called) ? lane.called.map((item) => item.token_code).filter(Boolean) : [];
             const allNext = Array.isArray(lane.next) ? lane.next.map((item) => item.token_code).filter(Boolean) : [];
-            const fullQueueList = [
+            const combinedQueue = [
                 ...(current !== 'None' ? [current] : []),
                 ...called,
                 ...allNext
             ];
+            const fullQueueList = [];
+            const seenTokens = new Set();
+            combinedQueue.forEach((token) => {
+                if (!seenTokens.has(token)) {
+                    seenTokens.add(token);
+                    fullQueueList.push(token);
+                }
+            });
             let myQueueIndex = fullQueueList.indexOf(myToken);
             if (myQueueIndex < 0 && current === myToken) {
                 myQueueIndex = 0;
@@ -349,7 +357,7 @@
                     <div class="card shadow-lg p-4 bg-light text-dark lane-card student-focus-card">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <h4 class="mb-0">${lane.label || (myLane || 'General Queue')}</h4>
-                            <span class="badge ${lane.state === 'Queue not started yet' ? 'bg-warning text-dark' : 'bg-success'}">${lane.state || 'Queue active'}</span>
+                            <span class="badge ${lane.state === 'Queue not started yet' ? 'bg-warning text-dark' : 'bg-primary'}">${lane.state || 'Queue active'}</span>
                         </div>
                         <div class="text-center mb-3">
                             <div class="small text-uppercase text-muted mb-1">Your Token</div>

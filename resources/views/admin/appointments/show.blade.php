@@ -5,13 +5,24 @@
 @section('content')
 
 @php
-$status = strtolower($appointment->serviceRequest->status);
+$serviceRequest = $appointment->serviceRequest;
+$studentUser = $serviceRequest?->student?->user;
+$staffUser = $appointment->staff?->user;
+$studentName = $studentUser?->name ?? 'N/A';
+$studentEmail = $studentUser?->email ?? 'N/A';
+$staffName = $staffUser?->name ?? 'N/A';
+$staffOffice = $appointment->staff?->office?->name ?? 'N/A';
+$studentAvatar = $appointment->serviceRequest?->student?->avatar;
+$staffAvatar = $appointment->staff?->avatar;
+$studentAvatar = $studentAvatar ?: 'https://ui-avatars.com/api/?name=' . urlencode($studentName) . '&background=0D6EFD&color=fff';
+$staffAvatar = $staffAvatar ?: 'https://ui-avatars.com/api/?name=' . urlencode($staffName) . '&background=198754&color=fff';
+$status = strtolower($serviceRequest?->status ?? 'unknown');
 
 $statusClass = match ($status) {
-'approved' => 'bg-success',
-'pending' => 'bg-warning text-dark',
-'cancelled' => 'bg-danger',
-default => 'bg-secondary',
+    'approved' => 'bg-success',
+    'pending' => 'bg-warning text-dark',
+    'cancelled' => 'bg-danger',
+    default => 'bg-secondary',
 };
 @endphp
 
@@ -75,7 +86,7 @@ default => 'bg-secondary',
                             </h6>
 
                             <p class="mb-1"><small class="text-muted">Request ID</small></p>
-                            <p class="fw-medium">{{ $appointment->serviceRequest->request_number }}</p>
+                            <p class="fw-medium">{{ $serviceRequest?->request_number ?? 'N/A' }}</p>
 
                             <p class="mb-1"><small class="text-muted">Status</small></p>
                             <span class="badge rounded-pill px-3 py-2 {{ $statusClass }}">
@@ -96,20 +107,17 @@ default => 'bg-secondary',
                             </h6>
 
                             <div class="d-flex align-items-center gap-3 mt-3">
-                                <img src="{{ $appointment->serviceRequest->student->avatar
-                        ?? 'https://ui-avatars.com/api/?name=' .
-                        urlencode($appointment->serviceRequest->student->user->name) .
-                        '&background=0D6EFD&color=fff' }}"
+                                <img src="{{ $studentAvatar }}"
                                     class="rounded-circle"
                                     width="60" height="60"
                                     alt="Student Avatar">
 
                                 <div>
                                     <h6 class="mb-1 fw-semibold">
-                                        {{ $appointment->serviceRequest->student->user->name }}
+                                        {{ $studentName }}
                                     </h6>
                                     <small class="text-muted">
-                                        {{ $appointment->serviceRequest->student->user->email }}
+                                        {{ $studentEmail }}
                                     </small>
                                 </div>
                             </div>
@@ -130,20 +138,17 @@ default => 'bg-secondary',
                             </h6>
 
                             <div class="d-flex align-items-center gap-3">
-                                <img src="{{ $appointment->staff->avatar
-                        ?? 'https://ui-avatars.com/api/?name=' .
-                        urlencode($appointment->staff->user->name) .
-                        '&background=198754&color=fff' }}"
+                                <img src="{{ $staffAvatar }}"
                                     class="rounded-circle"
                                     width="60" height="60"
                                     alt="Staff Avatar">
 
                                 <div>
                                     <h6 class="mb-1 fw-semibold">
-                                        {{ $appointment->staff->user->name }}
+                                        {{ $staffName }}
                                     </h6>
                                     <small class="text-muted">
-                                        {{ $appointment->staff->office->name ?? 'N/A' }}
+                                        {{ $staffOffice }}
                                     </small>
                                 </div>
                             </div>

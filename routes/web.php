@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PublicQueueController;
 use App\Http\Controllers\Staff\StaffDashboardController;
@@ -66,6 +67,10 @@ Route::get('/queue/live', [ServiceRequestController::class, 'liveQueue'])
     ->name('queue.live');
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/attachments/requests/{attachment}', [AttachmentController::class, 'request'])
+        ->name('attachments.request');
+    Route::get('/attachments/replies/{reply}', [AttachmentController::class, 'reply'])
+        ->name('attachments.reply');
 
     Route::middleware(['auth'])->group(function () {
         Route::get(

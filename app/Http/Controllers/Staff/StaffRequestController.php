@@ -120,10 +120,13 @@ class StaffRequestController extends Controller
             ->orderByRaw('COALESCE(called_at, queued_at, created_at)')
             ->first();
 
+        $autoOpenModes = ['online', 'appointment'];
+        $autoOpenStatuses = ['Submitted', 'In Review', 'Awaiting Student Response', 'Appointment Required', 'Appointment Scheduled'];
+
         if (
             $active
-            && $active->request_mode === 'online'
-            && in_array($active->status, ['Submitted', 'In Review', 'Awaiting Student Response', 'Appointment Required', 'Appointment Scheduled'], true)
+            && in_array($active->request_mode, $autoOpenModes, true)
+            && in_array($active->status, $autoOpenStatuses, true)
             && $active->queue_stage !== 'completed'
         ) {
             if ($active->status !== 'In Review' || $active->queue_stage !== 'serving') {
@@ -173,7 +176,7 @@ class StaffRequestController extends Controller
         $candidate->serving_counter = $this->servingLabel($staff);
         $candidate->save();
 
-        if ($candidate->request_mode === 'online') {
+        if (in_array($candidate->request_mode, $autoOpenModes, true)) {
             $message = $completedToken
                 ? "Completed {$completedToken} and called {$candidate->token_code}. Review request details to continue."
                 : "Called token {$candidate->token_code}. Review request details to continue.";
@@ -248,6 +251,7 @@ class StaffRequestController extends Controller
     {
         $staff = auth()->user()->staff;
         $this->ensureStaffCanAccessRequest($staff, $request);
+        $request->load(['student.user', 'office', 'serviceType', 'attachments', 'replies.user']);
 
         if (!in_array($request->status, ['In Review', 'Resolved', 'Closed'], true)) {
             $request->status = 'In Review';

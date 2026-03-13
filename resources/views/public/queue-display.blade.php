@@ -8,7 +8,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
-            background: linear-gradient(135deg, #0d6efd, #20c997);
+            background: linear-gradient(135deg, #00225a, #6f86ff);
             min-height: 100vh;
             color: white;
         }
@@ -52,7 +52,7 @@
             gap: 8px;
             padding: 6px 10px;
             border-radius: 999px;
-            background: rgba(25, 135, 84, 0.18);
+            background: rgba(13, 110, 253, 0.18);
             color: #fff;
             font-weight: 600;
             border: 1px solid rgba(255, 255, 255, 0.25);
@@ -90,14 +90,14 @@
             width: 10px;
             height: 10px;
             border-radius: 50%;
-            background: #7dffb6;
-            box-shadow: 0 0 0 0 rgba(125, 255, 182, 0.75);
+            background: #6f86ff;
+            box-shadow: 0 0 0 0 rgba(111, 134, 255, 0.75);
             animation: pulse 1.8s infinite;
         }
 
         .live-dot.reconnecting {
-            background: #ffc078;
-            box-shadow: 0 0 0 0 rgba(255, 192, 120, 0.75);
+            background: #a5b4fc;
+            box-shadow: 0 0 0 0 rgba(165, 180, 252, 0.75);
         }
 
         .metric-bump {
@@ -167,7 +167,7 @@
             width: 72px;
             height: 72px;
             border-radius: 50%;
-            border: 2px solid rgba(125, 255, 182, .9);
+            border: 2px solid rgba(111, 134, 255, .9);
             position: relative;
             margin: 0 auto 1rem;
         }
@@ -177,7 +177,7 @@
             position: absolute;
             inset: 10px;
             border-radius: 50%;
-            border: 2px solid rgba(125, 255, 182, .45);
+            border: 2px solid rgba(111, 134, 255, .45);
         }
         .no-lane-radar::after {
             animation: radarPingTv 1.9s ease-out infinite;
@@ -191,8 +191,8 @@
         }
 
         @keyframes pulse {
-            70% { box-shadow: 0 0 0 12px rgba(125, 255, 182, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(125, 255, 182, 0); }
+            70% { box-shadow: 0 0 0 12px rgba(111, 134, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(111, 134, 255, 0); }
         }
 
         @keyframes laneGlow {
@@ -258,7 +258,7 @@
                         <div class="card shadow-lg p-4 bg-light text-dark lane-card">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <h4 class="mb-0">{{ $lane['label'] }}</h4>
-                                <span class="badge {{ $lane['state'] === 'Queue not started yet' ? 'bg-warning text-dark' : 'bg-success' }} lane-state">
+                                <span class="badge {{ $lane['state'] === 'Queue not started yet' ? 'bg-warning text-dark' : 'bg-primary' }} lane-state">
                                     {{ $lane['state'] }}
                                 </span>
                             </div>
@@ -325,7 +325,9 @@
         let previousCurrentByLane = new Map();
         let audioCtx = null;
         let audioUnlocked = false;
-        let pendingAnnouncement = '';
+        let announcementQueue = [];
+        let pendingAnnouncements = [];
+        let isSpeaking = false;
         const SOUND_KEY = 'uqs-tv-queue-sound-enabled';
 
         function isSoundEnabled() {
@@ -344,10 +346,10 @@
                     window.speechSynthesis.getVoices();
                 }
                 audioUnlocked = true;
-                if (pendingAnnouncement) {
-                    const queued = pendingAnnouncement;
-                    pendingAnnouncement = '';
-                    speakAnnouncement(queued);
+                if (pendingAnnouncements.length) {
+                    const queued = pendingAnnouncements.slice();
+                    pendingAnnouncements.length = 0;
+                    queued.forEach((message) => speakAnnouncement(message));
                 }
             } catch (_) {
                 // Ignore unlock errors
@@ -391,11 +393,19 @@
         function speakAnnouncement(message) {
             if (!isSoundEnabled() || !window.speechSynthesis) return;
             if (!audioUnlocked) {
-                pendingAnnouncement = message;
+                pendingAnnouncements.push(message);
                 return;
             }
+            if (!message) return;
+            announcementQueue.push(message);
+            speakNextAnnouncement();
+        }
+
+        function speakNextAnnouncement() {
+            if (!isSoundEnabled() || !window.speechSynthesis || isSpeaking) return;
+            const message = announcementQueue.shift();
+            if (!message) return;
             try {
-                window.speechSynthesis.cancel();
                 if (typeof window.speechSynthesis.resume === 'function') {
                     window.speechSynthesis.resume();
                 }
@@ -403,10 +413,18 @@
                 utter.rate = 0.98;
                 utter.pitch = 1;
                 utter.volume = 1;
+                utter.onend = () => {
+                    isSpeaking = false;
+                    speakNextAnnouncement();
+                };
+                utter.onerror = () => {
+                    isSpeaking = false;
+                    speakNextAnnouncement();
+                };
+                isSpeaking = true;
                 window.speechSynthesis.speak(utter);
-                pendingAnnouncement = '';
             } catch (_) {
-                pendingAnnouncement = message;
+                isSpeaking = false;
             }
         }
 
@@ -428,10 +446,11 @@
             if (!changed.length) return;
             playSoftCue();
             setTimeout(playSoftCue, 220);
-            const primary = changed[0];
-            const atLabel = primary.counter ? ` at ${primary.counter}` : '';
-            // On Chrome, try speaking regardless of chime success to keep automatic announcements.
-            speakAnnouncement(`Now serving ${primary.token} at ${primary.lane}${atLabel}`);
+            changed.forEach((item) => {
+                const atLabel = item.counter ? ` at ${item.counter}` : '';
+                // On Chrome, try speaking regardless of chime success to keep automatic announcements.
+                speakAnnouncement(`Now serving ${item.token} at ${item.lane}${atLabel}`);
+            });
         }
 
         function setConnectionState(isOnline) {
@@ -445,7 +464,7 @@
         }
 
         function laneCardHtml(lane, isSingleLane = false) {
-            const stateClass = lane.state === 'Queue not started yet' ? 'bg-warning text-dark' : 'bg-success';
+            const stateClass = lane.state === 'Queue not started yet' ? 'bg-warning text-dark' : 'bg-primary';
             const current = lane.current_token ?? 'None';
             const currentCounter = lane.current_counter ?? '';
             const calledTokens = Array.isArray(lane.called) ? lane.called : [];
@@ -498,13 +517,15 @@
             }
 
             if (!hasRenderedOnce) {
-                const initialLane = lanes.find((lane) => (lane.current_token ?? 'None') !== 'None');
-                if (initialLane) {
-                    const token = initialLane.current_token;
-                    const atLabel = initialLane.current_counter ? ` at ${initialLane.current_counter}` : '';
+                const initialLanes = lanes.filter((lane) => (lane.current_token ?? 'None') !== 'None');
+                if (initialLanes.length) {
                     playSoftCue();
                     setTimeout(playSoftCue, 220);
-                    speakAnnouncement(`Now serving ${token} at ${initialLane.label}${atLabel}`);
+                    initialLanes.forEach((lane) => {
+                        const token = lane.current_token;
+                        const atLabel = lane.current_counter ? ` at ${lane.current_counter}` : '';
+                        speakAnnouncement(`Now serving ${token} at ${lane.label}${atLabel}`);
+                    });
                 }
             }
 
@@ -567,6 +588,9 @@
                     playSoftCue();
                 } else if (window.speechSynthesis) {
                     window.speechSynthesis.cancel();
+                    announcementQueue = [];
+                    pendingAnnouncements = [];
+                    isSpeaking = false;
                 }
             });
         })();

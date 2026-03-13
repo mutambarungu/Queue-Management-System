@@ -4,14 +4,24 @@
 
 @section('content')
 <div class="container">
-    <div class="d-flex justify-content-between mb-4">
-        <h4>Archived Requests</h4>
+    <div class="d-flex align-items-center justify-content-between mb-3">
+        <h4 class="mb-0">Archived Requests</h4>
         <a href="{{ route('admin.requests.index') }}" class="btn btn-outline-primary">
             Active Requests
         </a>
     </div>
 
     <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <form method="GET" action="{{ route('admin.requests.archived') }}" class="d-flex align-items-center gap-2">
+                <input type="text" name="q" class="form-control form-control-sm"
+                       placeholder="Search archived requests" value="{{ $search ?? '' }}" style="width: 240px;">
+                <button class="btn btn-sm btn-primary">Search</button>
+                @if(!empty($search))
+                    <a href="{{ route('admin.requests.archived') }}" class="btn btn-sm btn-outline-secondary">Clear</a>
+                @endif
+            </form>
+        </div>
         <div class="card-body table-responsive">
             <table class="table table-hover align-middle">
                 <thead class="table-light">
@@ -30,8 +40,8 @@
                         <tr>
                             <td>{{ $loop->iteration }}</td>
                             <td>{{ $req->request_number }}</td>
-                            <td>{{ $req->student->user->name }}</td>
-                            <td>{{ $req->office->name }}</td>
+                            <td>{{ $req->student?->user?->name ?? 'N/A' }}</td>
+                            <td>{{ $req->office?->name ?? 'N/A' }}</td>
                             <td>
                                 <span class="badge bg-secondary">{{ $req->status }}</span>
                             </td>

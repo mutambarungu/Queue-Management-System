@@ -34,7 +34,7 @@ class AdminServiceRequestController extends Controller
     // Show request detail
     public function show(ServiceRequest $request)
     {
-        $request->load(['student.user', 'office', 'serviceType', 'replies']);
+        $request->load(['student.user', 'office', 'serviceType', 'attachments', 'replies.user']);
         $reassignOffices = Office::with('subOffices')->orderBy('name')->get(['id', 'name']);
         $reassignSubOfficeMap = $reassignOffices->mapWithKeys(function ($office) {
             return [
@@ -169,11 +169,30 @@ class AdminServiceRequestController extends Controller
 
     public function archived()
     {
-        $requests = ServiceRequest::archived()
-            ->latest('archived_at')
-            ->paginate(15);
+        $search = trim((string) request('q', ''));
 
-        return view('admin.requests.archive', compact('requests'));
+        $requestsQuery = ServiceRequest::archived()
+            ->with(['student.user', 'office'])
+            ->latest('archived_at');
+
+        if ($search !== '') {
+            $requestsQuery->where(function ($query) use ($search) {
+                $query->where('request_number', 'like', '%' . $search . '%')
+                    ->orWhere('status', 'like', '%' . $search . '%')
+                    ->orWhereHas('student.user', function ($studentQuery) use ($search) {
+                        $studentQuery->where('name', 'like', '%' . $search . '%');
+                    })
+                    ->orWhereHas('office', function ($officeQuery) use ($search) {
+                        $officeQuery->where('name', 'like', '%' . $search . '%');
+                    });
+            });
+        }
+
+        $requests = $requestsQuery
+            ->paginate(15)
+            ->withQueryString();
+
+        return view('admin.requests.archive', compact('requests', 'search'));
     }
 
     public function restore(ServiceRequest $request)
