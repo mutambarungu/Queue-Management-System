@@ -17,6 +17,7 @@ class ArchiveOldServiceRequests extends Command
             ->where('is_archived', false)
             ->where('updated_at', '<=', Carbon::now()->subDays(7))
             ->update([
+                'status' => 'Archived',
                 'is_archived' => true,
                 'archived_at' => now(),
             ]);

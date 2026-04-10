@@ -33,6 +33,7 @@ class AppointmentController extends Controller
     {
         $appointment->load([
             'serviceRequest.student.user',
+            'serviceRequest.replies.user',
             'staff.user',
             'staff.office'
         ]);
@@ -50,6 +51,7 @@ class AppointmentController extends Controller
 
         $appointment->load([
             'serviceRequest.student.user',
+            'serviceRequest.replies.user',
             'staff.user',
             'staff.office'
         ]);
@@ -61,6 +63,7 @@ class AppointmentController extends Controller
     {
         $appointment->load([
             'serviceRequest.student.user',
+            'serviceRequest.replies.user',
             'staff.user',
             'staff.office'
         ]);

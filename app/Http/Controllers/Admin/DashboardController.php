@@ -6,12 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\Staff;
 use App\Models\ServiceRequest;
+use App\Models\ServiceRequestReply;
 use App\Models\Office;
 use App\Support\QueueBusinessCalendar;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class DashboardController extends Controller
 {
@@ -75,7 +77,9 @@ class DashboardController extends Controller
 
     private function buildDashboardData($user): array
     {
-        $requestsQuery = ServiceRequest::query();
+        $this->maybeArchiveOldRequests();
+        $requestsQuery = ServiceRequest::query()
+            ->whereNull('archived_at');
 
         switch ($user->role) {
             case 'admin':
@@ -95,6 +99,7 @@ class DashboardController extends Controller
 
         $requestsPerOffice = $requestsPerOfficeQuery->withCount([
             'requests' => function ($query) use ($user) {
+                $query->whereNull('archived_at');
                 if ($user->role === 'student') {
                     $query->where('student_id', optional($user->student)->student_number);
                 }
@@ -153,13 +158,20 @@ class DashboardController extends Controller
         $nextAppointment = null;
         if ($user->role === 'student' && filled(optional($user->student)->student_number)) {
             $studentNumber = $user->student->student_number;
+            $now = Carbon::now(QueueBusinessCalendar::settings()['timezone']);
             $nextAppointmentModel = Appointment::query()
                 ->whereHas('serviceRequest', function ($query) use ($studentNumber) {
                     $query->where('student_id', $studentNumber)
                         ->whereNull('archived_at')
                         ->where('status', 'Appointment Scheduled');
                 })
-                ->whereDate('appointment_date', '>=', now()->toDateString())
+                ->where(function ($query) use ($now) {
+                    $query->whereDate('appointment_date', '>', $now->toDateString())
+                        ->orWhere(function ($query) use ($now) {
+                            $query->whereDate('appointment_date', $now->toDateString())
+                                ->whereTime('appointment_time', '>=', $now->toTimeString());
+                        });
+                })
                 ->with(['serviceRequest.office', 'serviceRequest.serviceType'])
                 ->orderBy('appointment_date')
                 ->orderBy('appointment_time')
@@ -174,6 +186,14 @@ class DashboardController extends Controller
                 $officeName = optional(optional($serviceRequest)->office)->name ?? 'Office';
                 $serviceName = optional(optional($serviceRequest)->serviceType)->name ?? 'Service Request';
                 $location = $nextAppointmentModel->location ?: $officeName;
+                $staffNote = null;
+                if ($serviceRequest) {
+                    $staffNote = ServiceRequestReply::query()
+                        ->where('service_request_id', $serviceRequest->id)
+                        ->whereHas('user', fn ($query) => $query->whereIn('role', ['staff', 'admin']))
+                        ->latest()
+                        ->value('message');
+                }
 
                 $nextAppointment = [
                     'id' => (int) $nextAppointmentModel->id,
@@ -183,6 +203,8 @@ class DashboardController extends Controller
                     'location' => $location,
                     'office_name' => $officeName,
                     'service_name' => $serviceName,
+                    'request_number' => $serviceRequest?->request_number,
+                    'staff_note' => $staffNote,
                     'show_url' => route('student.appointments.show', $nextAppointmentModel),
                 ];
             }
@@ -205,5 +227,22 @@ class DashboardController extends Controller
             'studentQueueTracker' => $studentQueueTracker,
             'nextAppointment' => $nextAppointment,
         ];
+    }
+
+    private function maybeArchiveOldRequests(): void
+    {
+        $cacheKey = 'requests:archive-old:last_run';
+        if (!Cache::add($cacheKey, now()->toDateTimeString(), now()->addMinutes(30))) {
+            return;
+        }
+
+        ServiceRequest::whereIn('status', ['Resolved', 'Closed'])
+            ->where('is_archived', false)
+            ->where('updated_at', '<=', now()->subDays(7))
+            ->update([
+                'status' => 'Archived',
+                'is_archived' => true,
+                'archived_at' => now(),
+            ]);
     }
 }

@@ -17,6 +17,9 @@ $staffAvatar = $appointment->staff?->avatar;
 $studentAvatar = $studentAvatar ?: 'https://ui-avatars.com/api/?name=' . urlencode($studentName) . '&background=0D6EFD&color=fff';
 $staffAvatar = $staffAvatar ?: 'https://ui-avatars.com/api/?name=' . urlencode($staffName) . '&background=198754&color=fff';
 $status = strtolower($serviceRequest?->status ?? 'unknown');
+$staffNote = $serviceRequest?->replies
+    ? $serviceRequest->replies->first(fn ($reply) => in_array($reply->user->role ?? null, ['staff', 'admin'], true))
+    : null;
 
 $statusClass = match ($status) {
     'approved' => 'bg-success',
@@ -157,6 +160,23 @@ $statusClass = match ($status) {
                     </div>
                 </div>
 
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm rounded-3 h-100">
+                        <div class="card-body">
+                            <h6 class="text-primary fw-semibold mb-3">
+                                <i class="bi bi-chat-left-text me-2"></i>
+                                Staff Note
+                            </h6>
+                            <p class="mb-0 text-muted">
+                                @if($staffNote)
+                                    {!! nl2br(e($staffNote->message)) !!}
+                                @else
+                                    No staff note provided yet.
+                                @endif
+                            </p>
+                        </div>
+                    </div>
+                </div>
 
             </div>
 

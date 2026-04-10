@@ -21,6 +21,7 @@ class ServiceRequest extends Model
         'request_mode',
         'description',
         'status',
+        'is_archived',
         'archived_at',
         'queued_at',
         'next_notified_at',

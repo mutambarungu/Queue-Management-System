@@ -58,6 +58,8 @@ Route::get('/api/service-types/{office}', function ($officeId) {
 });
 
 // Public QR queue flow (works for students and non-students).
+Route::get('/q/{code}', [ServiceRequestController::class, 'redirectShortQr'])
+    ->name('queue.join.short');
 Route::get('/queue/join', [ServiceRequestController::class, 'showJoinQueueFromQr'])
     ->middleware('signed:relative')
     ->name('queue.join.form');

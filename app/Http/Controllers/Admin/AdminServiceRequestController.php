@@ -16,7 +16,8 @@ class AdminServiceRequestController extends Controller
     public function index(Request $request)
     {
         // Optional: filter by status or office
-        $query = ServiceRequest::with(['student.user', 'office', 'serviceType']);
+        $query = ServiceRequest::with(['student.user', 'office', 'serviceType'])
+            ->whereNull('archived_at');
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -178,6 +179,7 @@ class AdminServiceRequestController extends Controller
         if ($search !== '') {
             $requestsQuery->where(function ($query) use ($search) {
                 $query->where('request_number', 'like', '%' . $search . '%')
+                    ->orWhere('student_id', 'like', '%' . $search . '%')
                     ->orWhere('status', 'like', '%' . $search . '%')
                     ->orWhereHas('student.user', function ($studentQuery) use ($search) {
                         $studentQuery->where('name', 'like', '%' . $search . '%');

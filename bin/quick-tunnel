@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PORT="${PORT:-8000}"
+HOST="${HOST:-0.0.0.0}"
+APP_URL="http://127.0.0.1:${PORT}"
+LOG_DIR="${TMPDIR:-/tmp}"
+CF_LOG="${LOG_DIR%/}/cloudflared-${PORT}.log"
+SERVE_LOG="${LOG_DIR%/}/laravel-serve-${PORT}.log"
+
+if ! command -v cloudflared >/dev/null 2>&1; then
+  echo "cloudflared not found. Install it first."
+  exit 1
+fi
+
+cleanup() {
+  if [[ -n "${CF_PID:-}" ]] && kill -0 "$CF_PID" 2>/dev/null; then
+    kill "$CF_PID" >/dev/null 2>&1 || true
+  fi
+  if [[ -n "${SERVE_PID:-}" ]] && kill -0 "$SERVE_PID" 2>/dev/null; then
+    kill "$SERVE_PID" >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup EXIT
+
+php artisan serve --host="$HOST" --port="$PORT" >"$SERVE_LOG" 2>&1 &
+SERVE_PID=$!
+
+cloudflared tunnel --url "$APP_URL" --no-autoupdate 2>&1 | tee "$CF_LOG" &
+CF_PID=$!
+
+URL=""
+for _ in {1..30}; do
+  URL=$(grep -Eo 'https?://[a-z0-9-]+\.trycloudflare\.com' "$CF_LOG" | tail -n 1 || true)
+  if [[ -n "$URL" ]]; then
+    break
+  fi
+  sleep 1
+done
+
+if [[ -z "$URL" ]]; then
+  echo "Could not detect the trycloudflare URL. Check: $CF_LOG"
+else
+  echo "Tunnel URL: $URL"
+
+  if [[ -f ".env" ]]; then
+    if grep -q '^QR_CODE_BASE_URL=' .env; then
+      if sed --version >/dev/null 2>&1; then
+        sed -i "s|^QR_CODE_BASE_URL=.*|QR_CODE_BASE_URL=${URL}|" .env
+      else
+        sed -i '' "s|^QR_CODE_BASE_URL=.*|QR_CODE_BASE_URL=${URL}|" .env
+      fi
+    else
+      echo "QR_CODE_BASE_URL=${URL}" >> .env
+    fi
+    php artisan config:clear >/dev/null 2>&1 || true
+  fi
+fi
+
+echo "Keep this running. Press Ctrl+C to stop."
+wait "$CF_PID"

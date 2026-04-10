@@ -15,11 +15,13 @@ use App\Models\Staff;
 use App\Models\Student;
 use App\Models\User;
 use App\Support\QueueBusinessCalendar;
+use App\Support\QrShortCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Throwable;
@@ -41,6 +43,7 @@ class ServiceRequestController extends Controller
 
         $requests = ServiceRequest::with(['office', 'serviceType'])
             ->where('student_id', $student->student_number)
+            ->whereNull('archived_at')
             ->latest()
             ->paginate(10);
 
@@ -303,18 +306,41 @@ class ServiceRequestController extends Controller
         $liveLane = $request->session()->get(self::LIVE_QUEUE_SESSION_KEY);
         $scannedOfficeId = is_array($liveLane) ? (int) ($liveLane['office_id'] ?? 0) : 0;
         $liveRequestId = is_array($liveLane) ? (int) ($liveLane['service_request_id'] ?? 0) : 0;
-
-        if ($scannedOfficeId <= 0) {
-            return view('student.queue.live', [
-                'office' => null,
-                'watchOffice' => null,
-                'myToken' => null,
-                'myLane' => null,
-            ]);
+        $sessionToken = is_array($liveLane) ? (string) ($liveLane['token_code'] ?? '') : '';
+        $sessionSubOfficeId = is_array($liveLane) ? ($liveLane['sub_office_id'] ?? null) : null;
+        $student = optional(Auth::user())->student;
+        if (!$student) {
+            $guestStudentNumber = (string) $request->session()->get(self::GUEST_STUDENT_SESSION_KEY, '');
+            if ($guestStudentNumber !== '') {
+                $student = Student::query()->where('student_number', $guestStudentNumber)->first();
+            }
         }
-
-        $watchOffice = Office::query()->find($scannedOfficeId);
+        $watchOffice = null;
         $activeRequest = null;
+        $findActiveRequest = function (?int $officeId = null) use ($student) {
+            if (!$student) {
+                return null;
+            }
+
+            return ServiceRequest::query()
+                ->with(['office', 'serviceType.subOffice'])
+                ->where('student_id', $student->student_number)
+                ->when($officeId, fn ($query) => $query->where('office_id', $officeId))
+                ->whereNull('archived_at')
+                ->whereIn('status', ['Submitted', 'In Review', 'Awaiting Student Response', 'Appointment Scheduled'])
+                ->whereNotIn('queue_stage', ['completed', 'no_show'])
+                ->whereIn('request_mode', ['walk_in', 'appointment', 'online'])
+                ->orderByRaw("FIELD(queue_stage, 'serving', 'called', 'waiting')")
+                ->orderByRaw('COALESCE(called_at, queued_at, created_at)')
+                ->first();
+        };
+
+        if ($scannedOfficeId > 0) {
+            $watchOffice = Office::query()->find($scannedOfficeId);
+        }
+        if ($watchOffice) {
+            $watchOffice->loadMissing('subOffices');
+        }
 
         if ($liveRequestId > 0) {
             $activeRequest = ServiceRequest::query()
@@ -329,27 +355,51 @@ class ServiceRequestController extends Controller
         }
 
         if (!$activeRequest) {
-            $student = optional(Auth::user())->student;
-            if ($student) {
-                $activeRequest = ServiceRequest::query()
-                    ->with(['office', 'serviceType.subOffice'])
-                    ->where('student_id', $student->student_number)
-                    ->where('office_id', $scannedOfficeId)
-                    ->whereNull('archived_at')
-                    ->whereIn('status', ['Submitted', 'In Review', 'Awaiting Student Response', 'Appointment Scheduled'])
-                    ->whereNotIn('queue_stage', ['completed', 'no_show'])
-                    ->whereIn('request_mode', ['walk_in', 'appointment', 'online'])
-                    ->orderByRaw("FIELD(queue_stage, 'serving', 'called', 'waiting')")
-                    ->orderByRaw('COALESCE(called_at, queued_at, created_at)')
-                    ->first();
+            $activeRequest = $findActiveRequest($scannedOfficeId > 0 ? $scannedOfficeId : null);
+        }
+
+        if (!$activeRequest) {
+            $activeRequest = $findActiveRequest();
+        }
+
+        if (!$watchOffice && $activeRequest) {
+            $watchOffice = $activeRequest->office;
+        }
+
+        if ($activeRequest && ($scannedOfficeId <= 0 || $liveRequestId <= 0 || (int) $activeRequest->office_id !== $scannedOfficeId)) {
+            $subOfficeId = optional($activeRequest->serviceType)->sub_office_id;
+            $request->session()->put(self::LIVE_QUEUE_SESSION_KEY, [
+                'office_id' => (int) $activeRequest->office_id,
+                'sub_office_id' => filled($subOfficeId) ? (int) $subOfficeId : null,
+                'service_request_id' => (int) $activeRequest->id,
+                'token_code' => (string) $activeRequest->token_code,
+                'scanned_at' => now()->timestamp,
+            ]);
+        }
+
+        if (!$watchOffice && !$activeRequest) {
+            return view('student.queue.live', [
+                'office' => null,
+                'watchOffice' => null,
+                'myToken' => null,
+                'myLane' => null,
+            ]);
+        }
+
+        $fallbackLane = null;
+        if (!$activeRequest && $watchOffice && filled($sessionToken)) {
+            if (filled($sessionSubOfficeId)) {
+                $fallbackLane = optional($watchOffice->subOffices->firstWhere('id', (int) $sessionSubOfficeId))->name;
             }
         }
 
         return view('student.queue.live', [
             'office' => optional($activeRequest)->office ?? $watchOffice,
             'watchOffice' => $watchOffice,
-            'myToken' => optional($activeRequest)->token_code,
-            'myLane' => optional(optional(optional($activeRequest)->serviceType)->subOffice)->name ?? 'General Queue',
+            'myToken' => optional($activeRequest)->token_code ?: ($sessionToken !== '' ? $sessionToken : null),
+            'myLane' => optional(optional(optional($activeRequest)->serviceType)->subOffice)->name
+                ?? $fallbackLane
+                ?? 'General Queue',
         ]);
     }
 
@@ -408,11 +458,30 @@ class ServiceRequestController extends Controller
         ]);
     }
 
+    public function redirectShortQr(Request $request, string $code)
+    {
+        $signature = (string) $request->query('s', '');
+        $decoded = QrShortCode::decode($code);
+
+        if (!$decoded || $signature === '' || !QrShortCode::verify($code, $signature)) {
+            abort(404);
+        }
+
+        $signedPath = URL::signedRoute('queue.join.form', array_filter([
+            'office_id' => $decoded['office_id'],
+            'sub_office_id' => $decoded['sub_office_id'],
+        ]), null, false);
+
+        return redirect()->to($signedPath);
+    }
+
     public function storeJoinQueueFromQr(Request $request)
     {
         $validated = $request->validate([
             'office_id' => 'required|integer|exists:offices,id',
             'sub_office_id' => 'nullable|integer',
+            'is_guest' => 'nullable|boolean',
+            'student_number' => 'nullable|string',
         ]);
 
         $sessionGrant = $request->session()->get(self::QR_JOIN_SESSION_KEY);
@@ -436,7 +505,26 @@ class ServiceRequestController extends Controller
 
         $student = optional(Auth::user())->student;
         if (!$student) {
-            $student = $this->resolveGuestStudent($request);
+            $studentNumberInput = trim((string) $request->input('student_number', ''));
+            $isGuest = $request->boolean('is_guest');
+
+            if ($studentNumberInput !== '') {
+                $request->merge(['student_number' => $studentNumberInput]);
+                $request->validate([
+                    'student_number' => 'required|string|exists:students,student_number',
+                ]);
+                $student = Student::query()->where('student_number', $studentNumberInput)->first();
+                if ($student) {
+                    $request->session()->put(self::GUEST_STUDENT_SESSION_KEY, $student->student_number);
+                }
+            } elseif ($isGuest) {
+                $student = $this->resolveGuestStudent($request, true);
+            }
+        }
+        if (!$student) {
+            return back()->withErrors([
+                'queue' => 'Student profile not found for this queue join.',
+            ]);
         }
 
         $now = QueueBusinessCalendar::now();
@@ -512,30 +600,18 @@ class ServiceRequestController extends Controller
 
     private function resolveServiceTypeForLane(int $officeId, ?int $subOfficeId = null): int
     {
-        $serviceType = ServiceType::query()
-            ->where('office_id', $officeId)
-            ->when(
-                filled($subOfficeId),
-                fn ($query) => $query->where('sub_office_id', $subOfficeId),
-                fn ($query) => $query->whereNull('sub_office_id')
-            )
-            ->orderBy('id')
-            ->first();
-
-        if ($serviceType) {
-            return (int) $serviceType->id;
-        }
-
         return (int) ServiceType::resolveOtherForLane($officeId, $subOfficeId)->id;
     }
 
-    private function resolveGuestStudent(Request $request): Student
+    private function resolveGuestStudent(Request $request, bool $forceNew = false): Student
     {
-        $storedStudentNumber = (string) $request->session()->get(self::GUEST_STUDENT_SESSION_KEY, '');
-        if ($storedStudentNumber !== '') {
-            $existing = Student::query()->where('student_number', $storedStudentNumber)->first();
-            if ($existing) {
-                return $existing;
+        if (!$forceNew) {
+            $storedStudentNumber = (string) $request->session()->get(self::GUEST_STUDENT_SESSION_KEY, '');
+            if ($storedStudentNumber !== '') {
+                $existing = Student::query()->where('student_number', $storedStudentNumber)->first();
+                if ($existing) {
+                    return $existing;
+                }
             }
         }
 

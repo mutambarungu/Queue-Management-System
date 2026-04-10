@@ -8,9 +8,12 @@ use App\Models\ServiceRequest;
 use App\Models\ServiceType;
 use App\Models\Staff;
 use App\Models\Student;
+use App\Models\User;
 use App\Support\QueueBusinessCalendar;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class QueueOperationsController extends Controller
 {
@@ -193,23 +196,40 @@ class QueueOperationsController extends Controller
             return back()->withErrors(['queue' => 'Walk-in queue is currently inactive for this lane.'])->withInput();
         }
 
-        $request->validate([
-            'student_number' => 'required|string|exists:students,student_number',
+        $studentNumberInput = trim((string) $request->input('student_number', ''));
+        $hasStudentNumber = $studentNumberInput !== '';
+        $isGuest = $request->boolean('is_guest') && !$hasStudentNumber;
+        $rules = [
             'description' => 'nullable|string|max:1200',
-        ]);
+        ];
 
-        $student = Student::where('student_number', $request->student_number)->firstOrFail();
-
-        if (filled($staff->campus) && $student->campus !== $staff->campus) {
-            return back()->withErrors(['student_number' => 'Student campus does not match your queue lane.'])->withInput();
+        if ($isGuest) {
+            $rules['student_number'] = 'nullable|string';
+        } else {
+            if ($hasStudentNumber) {
+                $request->merge(['student_number' => $studentNumberInput]);
+            }
+            $rules['student_number'] = 'required|string|exists:students,student_number';
         }
 
-        if (filled($staff->faculty) && $student->faculty !== $staff->faculty) {
-            return back()->withErrors(['student_number' => 'Student faculty does not match your queue lane.'])->withInput();
-        }
+        $request->validate($rules);
 
-        if (filled($staff->department) && $student->department !== $staff->department) {
-            return back()->withErrors(['student_number' => 'Student department does not match your queue lane.'])->withInput();
+        if ($isGuest) {
+            $student = $this->createGuestStudent();
+        } else {
+            $student = Student::where('student_number', $request->student_number)->firstOrFail();
+
+            if (filled($staff->campus) && $student->campus !== $staff->campus) {
+                return back()->withErrors(['student_number' => 'Student campus does not match your queue lane.'])->withInput();
+            }
+
+            if (filled($staff->faculty) && $student->faculty !== $staff->faculty) {
+                return back()->withErrors(['student_number' => 'Student faculty does not match your queue lane.'])->withInput();
+            }
+
+            if (filled($staff->department) && $student->department !== $staff->department) {
+                return back()->withErrors(['student_number' => 'Student department does not match your queue lane.'])->withInput();
+            }
         }
 
         $subOfficeId = filled($staff->sub_office_id) ? (int) $staff->sub_office_id : null;
@@ -227,6 +247,41 @@ class QueueOperationsController extends Controller
         ]);
 
         return back()->with('success', "Walk-in token {$walkIn->token_code} added to queue.");
+    }
+
+    private function createGuestStudent(): Student
+    {
+        do {
+            $suffix = strtoupper(Str::random(8));
+            $guestStudentNumber = 'GUEST-' . now()->format('Ymd') . '-' . $suffix;
+            $guestEmail = strtolower($guestStudentNumber) . '@guest.queue.local';
+        } while (
+            Student::query()->where('student_number', $guestStudentNumber)->exists()
+            || User::query()->where('email', $guestEmail)->exists()
+        );
+
+        $guestUser = User::query()->create([
+            'email' => $guestEmail,
+            'password' => Hash::make(Str::random(48)),
+            'role' => 'student',
+            'is_active' => true,
+            'email_verified_at' => now(),
+        ]);
+
+        $guestStudent = Student::query()->create([
+            'student_number' => $guestStudentNumber,
+            'name' => 'Guest Visitor',
+            'user_id' => $guestUser->id,
+            'campus' => null,
+            'faculty' => null,
+            'department' => null,
+            'phone' => null,
+        ]);
+
+        $guestUser->student_number = $guestStudent->student_number;
+        $guestUser->save();
+
+        return $guestStudent;
     }
 
     public function toggleWalkIns(Request $request)
@@ -276,7 +331,11 @@ class QueueOperationsController extends Controller
         $settings->save();
         QueueBusinessCalendar::clearCache();
 
-        return back()->with('success', $enabled ? 'Walk-in queue opened for this lane.' : 'Walk-in queue closed for this lane.');
+        if ($enabled) {
+            return back()->with('success', 'Walk-in queue opened for this lane.');
+        }
+
+        return back()->with('error', 'Walk-in queue closed for this lane.');
     }
 
     public function toggleQueueOperations(Request $request)
@@ -348,6 +407,9 @@ class QueueOperationsController extends Controller
             })
             ->where(function ($query) use ($staff) {
                 $query->whereDoesntHave('student')
+                    ->orWhereHas('student', function ($studentQuery) {
+                        $studentQuery->where('student_number', 'like', 'GUEST-%');
+                    })
                     ->orWhereHas('student', function ($studentQuery) use ($staff) {
                         if (filled($staff->campus)) {
                             $studentQuery->where('campus', $staff->campus);

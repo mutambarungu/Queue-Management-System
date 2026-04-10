@@ -4,12 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Office;
+use App\Support\QrShortCode;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\URL;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use Throwable;
 use ZipArchive;
@@ -208,12 +208,11 @@ class OfficeController extends Controller
 
     private function buildQrJoinUrl(int $officeId, ?int $subOfficeId = null): string
     {
-        $signedPath = URL::signedRoute('queue.join.form', array_filter([
-            'office_id' => $officeId,
-            'sub_office_id' => $subOfficeId,
-        ]), null, false);
+        $code = QrShortCode::encode($officeId, $subOfficeId);
+        $signature = QrShortCode::sign($code);
+        $path = '/q/' . $code . '?s=' . $signature;
 
-        return $this->resolveQrBaseUrl() . $signedPath;
+        return $this->resolveQrBaseUrl() . $path;
     }
 
     private function resolveQrBaseUrl(): string

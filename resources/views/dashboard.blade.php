@@ -524,7 +524,7 @@
     .appointment-pill.tone-warning { background: rgba(245, 158, 11, 0.15); color: #d97706; border-color: rgba(245, 158, 11, 0.35); }
     .countdown-grid {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(4, 1fr);
         gap: 10px;
         margin-bottom: 10px;
     }
@@ -735,11 +735,15 @@
                                     <div class="countdown-value" id="appointment_hours">--</div>
                                     <div class="countdown-label">Hours</div>
                                 </div>
-                                <div class="countdown-slot">
-                                    <div class="countdown-value" id="appointment_minutes">--</div>
-                                    <div class="countdown-label">Minutes</div>
-                                </div>
+                            <div class="countdown-slot">
+                                <div class="countdown-value" id="appointment_minutes">--</div>
+                                <div class="countdown-label">Minutes</div>
                             </div>
+                            <div class="countdown-slot">
+                                <div class="countdown-value" id="appointment_seconds">--</div>
+                                <div class="countdown-label">Seconds</div>
+                            </div>
+                        </div>
                             <div class="countdown-meta" id="appointment_display">
                                 {{ $nextAppointment['display'] ?? '' }}
                             </div>
@@ -850,7 +854,7 @@
         let appointmentCountdownTimer = null;
         let currentAppointmentIso = null;
         let appointmentCalendarUrl = null;
-        let countdownSnapshot = { days: null, hours: null, minutes: null };
+        let countdownSnapshot = { days: null, hours: null, minutes: null, seconds: null };
 
         const els = {
             liveDot: document.getElementById('dashboard_live_dot'),
@@ -883,6 +887,7 @@
             appointmentDays: document.getElementById('appointment_days'),
             appointmentHours: document.getElementById('appointment_hours'),
             appointmentMinutes: document.getElementById('appointment_minutes'),
+            appointmentSeconds: document.getElementById('appointment_seconds'),
             appointmentDisplay: document.getElementById('appointment_display'),
             appointmentMeta: document.getElementById('appointment_meta'),
             appointmentAdd: document.getElementById('appointment_add_to_calendar'),
@@ -1088,31 +1093,53 @@
             return date.toISOString().replace(/[-:]/g, '').replace(/\\.\\d{3}Z$/, 'Z');
         }
 
+        function escapeIcsText(value) {
+            return String(value || '')
+                .replace(/\\/g, '\\\\')
+                .replace(/\n/g, '\\n')
+                .replace(/;/g, '\\;')
+                .replace(/,/g, '\\,');
+        }
+
         function buildCalendarFile(appointment) {
             if (!appointment?.iso) return null;
             const start = new Date(appointment.iso);
             const end = new Date(start.getTime() + 30 * 60 * 1000);
             const uid = `uqs-${start.getTime()}-university-queue`;
-            const summary = appointment.title || 'Appointment';
-            const location = appointment.location || '';
-            const description = appointment.office_name ? `Office: ${appointment.office_name}` : '';
+            const summaryBase = appointment.title || 'Appointment';
+            const summary = appointment.office_name ? `${summaryBase} @ ${appointment.office_name}` : summaryBase;
+            const location = appointment.location || appointment.office_name || '';
+            const descriptionParts = [];
+            if (appointment.staff_note) descriptionParts.push(`Staff note: ${appointment.staff_note}`);
+            if (appointment.service_name) descriptionParts.push(`Service: ${appointment.service_name}`);
+            if (appointment.office_name) descriptionParts.push(`Office: ${appointment.office_name}`);
+            if (appointment.request_number) descriptionParts.push(`Request: ${appointment.request_number}`);
+            if (appointment.show_url) descriptionParts.push(`Details: ${appointment.show_url}`);
+            const description = descriptionParts.filter(Boolean).join(' | ');
+            const calendarName = appointment.office_name ? `${appointment.office_name} Appointment` : 'University Queue Appointment';
+            const calendarDesc = appointment.service_name ? `${appointment.service_name} appointment` : 'University Queue appointment';
 
             const lines = [
                 'BEGIN:VCALENDAR',
                 'VERSION:2.0',
                 'PRODID:-//University Queue//EN',
+                'CALSCALE:GREGORIAN',
+                'METHOD:PUBLISH',
+                `X-WR-CALNAME:${escapeIcsText(calendarName)}`,
+                `X-WR-CALDESC:${escapeIcsText(calendarDesc)}`,
                 'BEGIN:VEVENT',
                 `UID:${uid}`,
                 `DTSTAMP:${formatCalendarStamp(new Date())}`,
                 `DTSTART:${formatCalendarStamp(start)}`,
                 `DTEND:${formatCalendarStamp(end)}`,
-                `SUMMARY:${summary.replace(/\\n/g, ' ')}`,
-                `LOCATION:${location.replace(/\\n/g, ' ')}`,
-                `DESCRIPTION:${description.replace(/\\n/g, ' ')}`,
+                `SUMMARY:${escapeIcsText(summary)}`,
+                `LOCATION:${escapeIcsText(location)}`,
+                `DESCRIPTION:${escapeIcsText(description)}`,
+                ...(appointment.show_url ? [`URL:${escapeIcsText(appointment.show_url)}`] : []),
                 'END:VEVENT',
                 'END:VCALENDAR'
             ];
-            return new Blob([lines.join('\\r\\n')], { type: 'text/calendar' });
+            return new Blob([lines.join('\r\n')], { type: 'text/calendar' });
         }
 
         function updateAppointmentCountdown(nextAppointment) {
@@ -1186,15 +1213,21 @@
                 if (!currentAppointmentIso) return;
                 const target = new Date(currentAppointmentIso).getTime();
                 const now = Date.now();
-                const diff = Math.max(0, target - now);
-                const totalMinutes = Math.floor(diff / 60000);
-                const days = Math.floor(totalMinutes / 1440);
-                const hours = Math.floor((totalMinutes % 1440) / 60);
-                const minutes = totalMinutes % 60;
+                if (!Number.isFinite(target) || target <= now) {
+                    updateAppointmentCountdown(null);
+                    return;
+                }
+                const diff = target - now;
+                const totalSeconds = Math.floor(diff / 1000);
+                const days = Math.floor(totalSeconds / 86400);
+                const hours = Math.floor((totalSeconds % 86400) / 3600);
+                const minutes = Math.floor((totalSeconds % 3600) / 60);
+                const seconds = totalSeconds % 60;
 
                 setCountdownValue(els.appointmentDays, 'days', String(days));
                 setCountdownValue(els.appointmentHours, 'hours', String(hours).padStart(2, '0'));
                 setCountdownValue(els.appointmentMinutes, 'minutes', String(minutes).padStart(2, '0'));
+                setCountdownValue(els.appointmentSeconds, 'seconds', String(seconds).padStart(2, '0'));
             };
 
             updateCountdown();

@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Office;
 use App\Models\QueueTokenSequence;
+use App\Models\ServiceRequest;
 use App\Models\ServiceType;
 use Illuminate\Support\Facades\DB;
 use Throwable;
@@ -48,7 +49,20 @@ class QueueTokenGenerator
                 }
             }
 
-            $sequence->last_number = (int) $sequence->last_number + 1;
+            $maxUsed = (int) ServiceRequest::query()
+                ->where('office_id', $officeId)
+                ->whereDate('token_date', $date)
+                ->whereHas('serviceType', function ($query) use ($subOfficeId) {
+                    if (filled($subOfficeId)) {
+                        $query->where('sub_office_id', $subOfficeId);
+                    } else {
+                        $query->whereNull('sub_office_id');
+                    }
+                })
+                ->max('token_number');
+
+            $baseline = max((int) $sequence->last_number, $maxUsed);
+            $sequence->last_number = $baseline + 1;
             $sequence->save();
 
             return (int) $sequence->last_number;

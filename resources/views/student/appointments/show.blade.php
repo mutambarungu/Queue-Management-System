@@ -13,6 +13,8 @@ $statusClass = match ($status) {
     'cancelled' => 'bg-danger',
     default => 'bg-secondary',
 };
+$staffNote = $appointment->serviceRequest->replies
+    ->first(fn ($reply) => in_array($reply->user->role ?? null, ['staff', 'admin'], true));
 @endphp
 
 <div class="container py-4">
@@ -127,6 +129,24 @@ $statusClass = match ($status) {
                                     </small>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div class="card border-0 shadow-sm rounded-3 h-100">
+                        <div class="card-body">
+                            <h6 class="text-primary fw-semibold mb-3">
+                                <i class="bi bi-chat-left-text me-2"></i>
+                                Staff Note
+                            </h6>
+                            <p class="mb-0 text-muted">
+                                @if($staffNote)
+                                    {!! nl2br(e($staffNote->message)) !!}
+                                @else
+                                    No staff note provided yet.
+                                @endif
+                            </p>
                         </div>
                     </div>
                 </div>

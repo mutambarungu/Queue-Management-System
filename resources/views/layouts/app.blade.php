@@ -26,11 +26,14 @@
     </script>
 
 </head>
-@php($isQueueJoinPage = request()->routeIs('student.queue.join.form') || request()->routeIs('queue.join.form'))
+@php($isQueuePublicPage = request()->routeIs('student.queue.join.form')
+    || request()->routeIs('queue.join.form')
+    || request()->routeIs('queue.live')
+    || request()->routeIs('student.queue.live'))
 
 <body class="nk-body bg-lighter npc-general has-sidebar app-responsive">
     <div class="nk-app-root">
-        @if($isQueueJoinPage)
+        @if($isQueuePublicPage)
             <div class="nk-main">
                 <div class="nk-wrap">
                     <div class="nk-content">
@@ -62,7 +65,7 @@
         @endif
     </div>
     <script src="{{ asset('assets/js/bundlee1e3.js?ver=3.2.4') }}"></script>
-    @if(!$isQueueJoinPage)
+    @if(!$isQueuePublicPage)
         <script src="{{ asset('assets/js/scriptse1e3.js?ver=3.2.4') }}"></script>
         <script src="{{ asset('assets/js/demo-settingse1e3.js?ver=3.2.4') }}"></script>
         <script src="{{ asset('assets/js/charts/gd-defaulte1e3.js?ver=3.2.4') }}"></script>

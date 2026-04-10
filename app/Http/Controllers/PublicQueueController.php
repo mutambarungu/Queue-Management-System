@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Office;
 use App\Models\ServiceRequest;
 use App\Support\QueueBusinessCalendar;
+use Illuminate\Http\Request;
 
 class PublicQueueController extends Controller
 {
@@ -19,9 +20,10 @@ class PublicQueueController extends Controller
         ]);
     }
 
-    public function status(Office $office)
+    public function status(Office $office, Request $request)
     {
-        $lanes = $this->buildLanes($office)->map(function ($lane) {
+        $includeClosed = $request->boolean('include_closed');
+        $lanes = $this->buildLanes($office, $includeClosed)->map(function ($lane) {
             $currentToken = optional($lane['current'])->token_code;
             $calledTokens = $lane['called']->map(fn ($request) => $request->token_code)->filter()->values();
             $nextTokens = $lane['next']->map(fn ($request) => $request->token_code)->filter()->values();
@@ -86,7 +88,7 @@ class PublicQueueController extends Controller
     {
         $today = QueueBusinessCalendar::now()->toDateString();
         $query = $this->laneBaseQuery($officeId, $subOfficeId)
-            ->whereIn('status', ['Submitted', 'Awaiting Student Response', 'Appointment Scheduled'])
+            ->whereIn('status', ['Submitted', 'In Review', 'Awaiting Student Response', 'Appointment Scheduled'])
             ->where('queue_stage', 'waiting')
             ->where(function ($query) use ($today) {
                 $query->whereIn('request_mode', ['walk_in', 'online'])
@@ -104,7 +106,7 @@ class PublicQueueController extends Controller
         return $query->get()->values();
     }
 
-    private function buildLanes(Office $office)
+    private function buildLanes(Office $office, bool $includeClosed = false)
     {
         $office->loadMissing('subOffices');
 
@@ -120,7 +122,7 @@ class PublicQueueController extends Controller
 
         $now = QueueBusinessCalendar::now();
         $holidayMessage = QueueBusinessCalendar::holidayReminderText($now);
-        return $laneDefinitions->map(function ($lane) use ($office, $holidayMessage, $now) {
+        return $laneDefinitions->map(function ($lane) use ($office, $holidayMessage, $now, $includeClosed) {
             $laneSubOfficeId = $lane['sub_office_id'];
             $current = null;
             $called = collect();
@@ -130,8 +132,9 @@ class PublicQueueController extends Controller
             $laneIsOpen = QueueBusinessCalendar::isOpenAt($now, $office->id, null);
             $canRunQueue = $queueOpsEnabled || $laneIsOpen;
             $holidayPaused = filled($holidayMessage) && !$queueOpsEnabled;
+            $shouldLoadTokens = $includeClosed || (!$holidayPaused && $canRunQueue);
 
-            if (!$holidayPaused && $canRunQueue) {
+            if ($shouldLoadTokens) {
                 $current = $this->laneBaseQuery($office->id, $laneSubOfficeId)
                     ->whereIn('queue_stage', ['serving', 'called'])
                     ->orderByRaw("FIELD(queue_stage, 'serving', 'called')")
@@ -146,14 +149,17 @@ class PublicQueueController extends Controller
                     ->values();
 
                 $next = $this->buildFairNextList($office->id, $laneSubOfficeId);
+            }
+
+            if ($holidayPaused) {
+                $state = $holidayMessage;
+            } elseif (!$canRunQueue) {
+                $state = QueueBusinessCalendar::closureMessage(QueueBusinessCalendar::now(), $office->id, null) ?? 'Office currently closed.';
+            } else {
                 $state = (!$current && $next->isNotEmpty()) ? 'Queue not started yet' : 'Queue active';
                 if (!$laneIsOpen && $queueOpsEnabled) {
                     $state = 'Queue active (manual override)';
                 }
-            } elseif ($holidayPaused) {
-                $state = $holidayMessage;
-            } else {
-                $state = QueueBusinessCalendar::closureMessage(QueueBusinessCalendar::now(), $office->id, null) ?? 'Office currently closed.';
             }
 
             return [

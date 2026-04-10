@@ -253,7 +253,8 @@ class StaffRequestController extends Controller
         $this->ensureStaffCanAccessRequest($staff, $request);
         $request->load(['student.user', 'office', 'serviceType', 'attachments', 'replies.user']);
 
-        if (!in_array($request->status, ['In Review', 'Resolved', 'Closed'], true)) {
+        $autoReviewStatuses = ['Submitted', 'Awaiting Student Response'];
+        if (in_array($request->status, $autoReviewStatuses, true)) {
             $request->status = 'In Review';
             if ($request->queue_stage === 'called') {
                 $request->queue_stage = 'serving';
@@ -301,17 +302,6 @@ class StaffRequestController extends Controller
             'status' => 'required|in:Submitted,In Review,Awaiting Student Response,Appointment Scheduled,Appointment Required,Resolved,Closed',
         ]);
 
-        $queueStarted = $this->staffScopedRequests($staff)
-            ->whereNull('archived_at')
-            ->where('queue_stage', 'serving')
-            ->exists();
-
-        if (!$queueStarted && $r->status !== 'In Review') {
-            return back()->withErrors([
-                'status' => 'Queue not started. Set at least one request to "In Review" first.',
-            ])->withInput();
-        }
-
         $filePath = null;
         if ($r->hasFile('attachment')) {
             $filePath = $r->file('attachment')->store('request_replies', 'public');
@@ -352,6 +342,12 @@ class StaffRequestController extends Controller
             ->send(new RequestRepliedMail($request));
 
         if ($r->boolean('from_queue')) {
+            if ($r->input('status') === 'Appointment Required') {
+                return redirect()
+                    ->route('staff.requests.show', ['request' => $request->id, 'from_queue' => 1])
+                    ->with('success', 'Reply sent successfully. Schedule the appointment below.');
+            }
+
             return redirect()
                 ->route('staff.queue.operations')
                 ->with('success', 'Reply sent successfully. Back to queue operations.');
@@ -449,6 +445,9 @@ class StaffRequestController extends Controller
             })
             ->where(function ($query) use ($staff) {
                 $query->whereDoesntHave('student')
+                    ->orWhereHas('student', function ($studentQuery) {
+                        $studentQuery->where('student_number', 'like', 'GUEST-%');
+                    })
                     ->orWhereHas('student', function ($studentQuery) use ($staff) {
                         if (filled($staff->campus)) {
                             $studentQuery->where('campus', $staff->campus);

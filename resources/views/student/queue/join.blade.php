@@ -36,6 +36,14 @@
     .join-note {
         color: #4c5d79;
     }
+    .join-queue-page .alert-secondary {
+        background: #eef6ff;
+        border-color: #cfe2ff;
+        color: #0a58ca;
+    }
+    .join-queue-page .text-muted {
+        color: #0a58ca !important;
+    }
     .join-glow-btn {
         position: relative;
         border: none;
@@ -113,11 +121,44 @@
                         </div>
                     @endif
 
-                    <form method="POST" action="{{ route('queue.join.store') }}">
+                    @php
+                        $authStudent = optional(Auth::user())->student;
+                        $liveLane = session('student_live_queue_lane');
+                        $sameLaneJoin = is_array($liveLane)
+                            && (int) ($liveLane['office_id'] ?? 0) === (int) $office->id
+                            && (int) ($liveLane['sub_office_id'] ?? 0) === (int) ($subOffice?->id ?? 0)
+                            && filled($liveLane['token_code'] ?? null);
+                        $hasJoinedToken = session('joined_token') || $sameLaneJoin;
+                    @endphp
+                    <form method="POST" action="{{ route('queue.join.store') }}" id="join_queue_form" data-can-join="{{ $canJoin ? '1' : '0' }}">
                         @csrf
                         <input type="hidden" name="office_id" value="{{ $office->id }}">
                         <input type="hidden" name="sub_office_id" value="{{ $subOffice?->id }}">
-                        <button type="submit" class="join-glow-btn w-100" {{ $canJoin ? '' : 'disabled' }}>
+                        @if($authStudent)
+                            <div class="alert alert-secondary mb-4">
+                                Joining as <strong>{{ $authStudent->student_number }}</strong>.
+                            </div>
+                        @elseif(!$hasJoinedToken)
+                            <div id="join_identity_fields">
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold" for="student_number">Student Number</label>
+                                    <input type="text"
+                                        class="form-control"
+                                        id="student_number"
+                                        name="student_number"
+                                        value="{{ old('student_number') }}"
+                                        placeholder="Enter student number">
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="is_guest_toggle" name="is_guest" value="1" {{ old('is_guest') ? 'checked' : '' }}>
+                                    <label class="form-check-label fw-semibold" for="is_guest_toggle">I am a guest (no student number)</label>
+                                </div>
+                                <div class="small text-muted mb-4">
+                                    If you're not a student, enable guest to get a walk-in token.
+                                </div>
+                            </div>
+                        @endif
+                        <button type="submit" class="join-glow-btn w-100" id="join_queue_btn" {{ $canJoin ? '' : 'disabled' }}>
                             {{ $canJoin ? 'Join Queue Now' : 'Queue Inactive' }}
                         </button>
                     </form>
@@ -136,4 +177,46 @@
         </div>
     </div>
 </div>
+@if(!$authStudent)
+<script>
+    (function () {
+        const form = document.getElementById('join_queue_form');
+        const guestToggle = document.getElementById('is_guest_toggle');
+        const studentInput = document.getElementById('student_number');
+        const identityFields = document.getElementById('join_identity_fields');
+        if (!form) return;
+        const canJoin = form.dataset.canJoin === '1';
+
+        const sync = () => {
+            if (!guestToggle || !studentInput) return;
+            const isGuest = guestToggle.checked;
+            studentInput.disabled = isGuest;
+            studentInput.required = !isGuest;
+            if (isGuest) {
+                studentInput.value = '';
+                studentInput.classList.remove('is-invalid');
+            }
+        };
+
+        if (guestToggle && studentInput) {
+            guestToggle.addEventListener('change', sync);
+            studentInput.addEventListener('input', () => {
+                if (studentInput.value.trim()) {
+                    studentInput.classList.remove('is-invalid');
+                    if (guestToggle.checked) {
+                        guestToggle.checked = false;
+                        sync();
+                    }
+                }
+            });
+            sync();
+        }
+
+        form.addEventListener('submit', () => {
+            if (!canJoin || !identityFields) return;
+            identityFields.classList.add('d-none');
+        });
+    })();
+</script>
+@endif
 @endsection

@@ -245,7 +245,7 @@
         const soundToggle = document.getElementById('queue_sound_toggle');
         const myToken = @json($myToken);
         const myLane = @json($myLane);
-        const statusUrl = @json($watchOffice ? route('queue.public.status', $watchOffice->id) : null);
+        const statusUrl = @json($watchOffice ? route('queue.public.status', ['office' => $watchOffice->id, 'include_closed' => 1]) : null);
         const SOUND_KEY = 'uqs-student-live-queue-sound';
         let previousCurrentByLane = new Map();
         let hasRenderedOnce = false;
@@ -267,6 +267,26 @@
                         <h2 class="mb-2">No Active Token Yet</h2>
                         <p class="mb-0 no-lane-sub">No token in the queue.</p>
                         <p class="mb-0 token-rule-note">Tokens are generated only by staff or by students after scanning an office QR code.</p>
+                    </div>
+                </div>
+            `;
+        };
+
+        const renderHolding = (message) => {
+            lanesContainer.innerHTML = `
+                <div class="col-lg-8 mx-auto">
+                    <div class="card shadow-lg p-4 bg-light text-dark lane-card student-focus-card">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h4 class="mb-0">${myLane || 'General Queue'}</h4>
+                            <span class="badge bg-info text-dark">Token Active</span>
+                        </div>
+                        <div class="text-center mb-3">
+                            <div class="small text-uppercase text-muted mb-1">Your Token</div>
+                            <div class="student-token-big">${myToken}</div>
+                        </div>
+                        <div class="text-center small text-muted">
+                            ${message || 'Your token is active. Waiting for the live lane list to sync.'}
+                        </div>
                     </div>
                 </div>
             `;
@@ -416,8 +436,18 @@
         };
 
         const render = (lanes) => {
-            if (!statusUrl || !myToken || !Array.isArray(lanes) || !lanes.length) {
+            if (!myToken) {
                 renderEmpty();
+                return;
+            }
+
+            if (!statusUrl) {
+                renderHolding('Your token is active. Live lane details are unavailable right now.');
+                return;
+            }
+
+            if (!Array.isArray(lanes) || !lanes.length) {
+                renderHolding('Your token is active, but the lane list is still loading. This usually clears in a few seconds.');
                 return;
             }
             announceChanges(lanes);
@@ -428,7 +458,7 @@
             );
 
             if (!focusedLane) {
-                renderEmpty();
+                renderHolding('Your token is active, but it is not listed in the live lane yet. Keep this page open and it should sync shortly.');
                 return;
             }
 
