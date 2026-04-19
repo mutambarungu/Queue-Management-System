@@ -73,6 +73,15 @@
                 </div>
 
                 <div class="col-md-2">
+                    <label class="form-label">Type</label>
+                    <select name="requester_type" class="form-select">
+                        <option value="">All Types</option>
+                        <option value="guest" {{ request('requester_type') === 'guest' ? 'selected' : '' }}>Guests Only</option>
+                        <option value="student" {{ request('requester_type') === 'student' ? 'selected' : '' }}>Students Only</option>
+                    </select>
+                </div>
+
+                <div class="col-md-2">
                     <label class="form-label">From</label>
                     <input type="date" name="from" class="form-control" value="{{ request('from') }}">
                 </div>
@@ -93,7 +102,7 @@
     </div>
 
     <div class="row g-gs mb-4">
-        <div class="col-sm-6 col-xl-3">
+        <div class="col-sm-6 col-lg-4 col-xl">
             <div class="card card-bordered">
                 <div class="card-inner">
                     <div class="text-soft">Total Tokens</div>
@@ -101,7 +110,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-sm-6 col-xl-3">
+        <div class="col-sm-6 col-lg-4 col-xl">
             <div class="card card-bordered">
                 <div class="card-inner">
                     <div class="text-soft">Waiting / Called</div>
@@ -109,7 +118,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-sm-6 col-xl-3">
+        <div class="col-sm-6 col-lg-4 col-xl">
             <div class="card card-bordered">
                 <div class="card-inner">
                     <div class="text-soft">Serving / Completed</div>
@@ -117,7 +126,15 @@
                 </div>
             </div>
         </div>
-        <div class="col-sm-6 col-xl-3">
+        <div class="col-sm-6 col-lg-4 col-xl">
+            <div class="card card-bordered">
+                <div class="card-inner">
+                    <div class="text-soft">Guests / Students</div>
+                    <h3 class="mt-1">{{ $summary['guests'] }} / {{ $summary['students'] }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-4 col-xl">
             <div class="card card-bordered">
                 <div class="card-inner">
                     <div class="text-soft">No Show</div>
@@ -187,7 +204,8 @@
                     <thead>
                         <tr>
                             <th>Token</th>
-                            <th>Student ID</th>
+                            <th>Type</th>
+                            <th>ID</th>
                             <th>Service</th>
                             <th>Mode</th>
                             <th>Status</th>
@@ -200,7 +218,8 @@
                         @forelse($requests as $requestItem)
                             <tr>
                                 <td><strong>{{ $requestItem->token_code }}</strong></td>
-                                <td>{{ $requestItem->student_id ?? 'Guest' }}</td>
+                                <td>{{ $requestItem->requester_type }}</td>
+                                <td>{{ $requestItem->student_report_id }}</td>
                                 <td>
                                     <div>{{ optional($requestItem->serviceType)->name ?? 'N/A' }}</div>
                                     <small class="text-soft">{{ optional(optional($requestItem->serviceType)->subOffice)->name ?? 'General Queue' }}</small>
@@ -213,7 +232,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="text-center text-soft">No records found for the selected filters.</td>
+                                <td colspan="9" class="text-center text-soft">No records found for the selected filters.</td>
                             </tr>
                         @endforelse
                     </tbody>

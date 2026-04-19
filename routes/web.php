@@ -104,6 +104,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('requests/{request}/track-queue', [ServiceRequestController::class, 'trackQueue'])->name('requests.track-queue');
             Route::post('requests/{request}/reply', [ServiceRequestController::class, 'reply'])->name('requests.reply');
             Route::get('appointments', [AppointmentController::class, 'studentIndex'])->name('appointments.index');
+            Route::get('appointments/{appointment}/calendar', [AppointmentController::class, 'downloadCalendarForStudent'])->name('appointments.calendar');
             Route::patch('appointments/{appointment}/cancel', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
             Route::get('appointments/{appointment}', [AppointmentController::class, 'showStudent'])->name('appointments.show');
 
@@ -160,6 +161,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('requests/{request}/reply', [StaffRequestController::class, 'reply'])->name('requests.reply');
 
             Route::get('appointments', [AppointmentController::class, 'staffIndex'])->name('appointments.index');
+            Route::get('appointments/{appointment}/calendar', [AppointmentController::class, 'downloadCalendarForStaff'])->name('appointments.calendar');
             Route::get('appointments/{appointment}', [AppointmentController::class, 'showStaff'])->name('appointments.show');
             Route::post('appointments/{appointment}/update', [AppointmentController::class, 'update'])->name('appointments.update');
             Route::post('requests/{serviceRequest}/appointment', [AppointmentController::class, 'store'])->name('appointments.store');
@@ -243,6 +245,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::prefix('admin')->name('admin.')->group(function () {
             Route::get('appointments', [AppointmentController::class, 'index'])->name('appointments.index');
+            Route::get('appointments/{appointment}/calendar', [AppointmentController::class, 'downloadCalendar'])->name('appointments.calendar');
             Route::get('appointments/{appointment}', [AppointmentController::class, 'show'])->name('appointments.show');
             Route::patch('appointments/{appointment}/cancel', [AppointmentController::class, 'cancel'])->name('appointments.cancel');
 

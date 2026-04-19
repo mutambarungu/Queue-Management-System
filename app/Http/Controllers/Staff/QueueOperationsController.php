@@ -33,7 +33,7 @@ class QueueOperationsController extends Controller
         $nowServing = (clone $base)
             ->whereIn('queue_stage', ['serving', 'called'])
             ->orderByRaw("FIELD(queue_stage, 'serving', 'called')")
-            ->orderByRaw('COALESCE(called_at, queued_at, created_at)')
+            ->orderByQueueActivity()
             ->first();
 
         $nextCandidate = $this->selectNextCandidate($staff);
@@ -118,7 +118,7 @@ class QueueOperationsController extends Controller
         $nowServing = (clone $base)
             ->whereIn('queue_stage', ['serving', 'called'])
             ->orderByRaw("FIELD(queue_stage, 'serving', 'called')")
-            ->orderByRaw('COALESCE(called_at, queued_at, created_at)')
+            ->orderByQueueActivity()
             ->first();
 
         $nextCandidate = $this->selectNextCandidate($staff);
@@ -251,10 +251,12 @@ class QueueOperationsController extends Controller
 
     private function createGuestStudent(): Student
     {
+        $nextNumber = Student::nextGuestSequenceNumber();
+
         do {
-            $suffix = strtoupper(Str::random(8));
-            $guestStudentNumber = 'GUEST-' . now()->format('Ymd') . '-' . $suffix;
+            $guestStudentNumber = Student::formatGuestStudentNumber($nextNumber);
             $guestEmail = strtolower($guestStudentNumber) . '@guest.queue.local';
+            $nextNumber++;
         } while (
             Student::query()->where('student_number', $guestStudentNumber)->exists()
             || User::query()->where('email', $guestEmail)->exists()
@@ -443,19 +445,19 @@ class QueueOperationsController extends Controller
             ->where('request_mode', 'appointment')
             ->where('status', 'Appointment Scheduled')
             ->whereHas('appointment', fn ($appointmentQuery) => $appointmentQuery->whereDate('appointment_date', $today))
-            ->orderByRaw('COALESCE(queued_at, created_at)')
+            ->orderByQueueEntry()
             ->get();
 
         $onlineRequests = (clone $baseQuery)
             ->where('request_mode', 'online')
             ->whereIn('status', ['Submitted', 'Awaiting Student Response'])
-            ->orderByRaw('COALESCE(queued_at, created_at)')
+            ->orderByQueueEntry()
             ->get();
 
         $walkIns = (clone $baseQuery)
             ->where('request_mode', 'walk_in')
             ->whereIn('status', ['Submitted', 'Awaiting Student Response'])
-            ->orderByRaw('COALESCE(queued_at, created_at)')
+            ->orderByQueueEntry()
             ->get();
 
         $cycleLength = max(1, (int) $policy['appointment_quota'] + (int) ($policy['online_quota'] ?? 1) + (int) $policy['walk_in_quota']);

@@ -39,6 +39,10 @@ $statusClass = match ($status) {
         </h4>
 
         <div class="d-flex gap-2">
+            <a href="{{ route('admin.appointments.calendar', $appointment) }}"
+                class="btn btn-outline-primary p-3">
+                <i class="bi bi-calendar-event me-1"></i> Add to Calendar
+            </a>
 
             <button class="btn btn-warning p-3"
                 data-bs-toggle="modal"

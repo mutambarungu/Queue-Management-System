@@ -331,7 +331,7 @@ class ServiceRequestController extends Controller
                 ->whereNotIn('queue_stage', ['completed', 'no_show'])
                 ->whereIn('request_mode', ['walk_in', 'appointment', 'online'])
                 ->orderByRaw("FIELD(queue_stage, 'serving', 'called', 'waiting')")
-                ->orderByRaw('COALESCE(called_at, queued_at, created_at)')
+                ->orderByQueueActivity()
                 ->first();
         };
 
@@ -555,7 +555,7 @@ class ServiceRequestController extends Controller
                 }
             })
             ->orderByRaw("FIELD(queue_stage, 'called', 'serving', 'waiting')")
-            ->orderByRaw('COALESCE(queued_at, created_at)')
+            ->orderByQueueEntry()
             ->first();
 
         if ($existingActive) {
@@ -615,10 +615,12 @@ class ServiceRequestController extends Controller
             }
         }
 
+        $nextNumber = Student::nextGuestSequenceNumber();
+
         do {
-            $suffix = strtoupper(Str::random(8));
-            $guestStudentNumber = 'GUEST-' . now()->format('Ymd') . '-' . $suffix;
+            $guestStudentNumber = Student::formatGuestStudentNumber($nextNumber);
             $guestEmail = strtolower($guestStudentNumber) . '@guest.queue.local';
+            $nextNumber++;
         } while (
             Student::query()->where('student_number', $guestStudentNumber)->exists()
             || User::query()->where('email', $guestEmail)->exists()

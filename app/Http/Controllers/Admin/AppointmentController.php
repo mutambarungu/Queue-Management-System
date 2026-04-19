@@ -6,12 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Mail\AppointmentScheduledMail;
 use App\Models\Appointment;
 use App\Models\ServiceRequest;
+use App\Support\AppointmentCalendarFile;
 use App\Support\QueueBusinessCalendar;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
 
 class AppointmentController extends Controller
 {
@@ -69,6 +70,42 @@ class AppointmentController extends Controller
         ]);
 
         return view('staff.appointments.show', compact('appointment'));
+    }
+
+    public function downloadCalendar(Appointment $appointment)
+    {
+        return $this->calendarResponse(
+            $appointment,
+            route('admin.appointments.show', $appointment)
+        );
+    }
+
+    public function downloadCalendarForStudent(Appointment $appointment)
+    {
+        $student = auth()->user()->student;
+
+        if (!$student || $appointment->serviceRequest->student_id !== $student->student_number) {
+            abort(403, 'Unauthorized access.');
+        }
+
+        return $this->calendarResponse(
+            $appointment,
+            route('student.appointments.show', $appointment)
+        );
+    }
+
+    public function downloadCalendarForStaff(Appointment $appointment)
+    {
+        $staff = auth()->user()->staff;
+
+        if (!$staff || $appointment->staff_number !== $staff->staff_number) {
+            abort(403, 'Unauthorized access.');
+        }
+
+        return $this->calendarResponse(
+            $appointment,
+            route('staff.appointments.show', $appointment)
+        );
     }
 
     public function cancel(Appointment $appointment)
@@ -249,5 +286,16 @@ class AppointmentController extends Controller
                 'appointment_time' => 'Appointment time is outside working hours. Allowed hours: ' . QueueBusinessCalendar::hoursDescription($serviceRequest->office_id, $faculty, $campus),
             ]);
         }
+    }
+
+    private function calendarResponse(Appointment $appointment, string $detailsUrl)
+    {
+        $content = AppointmentCalendarFile::content($appointment, $detailsUrl);
+
+        return response($content, 200, [
+            'Content-Type' => 'text/calendar; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . AppointmentCalendarFile::filename($appointment) . '"',
+            'Cache-Control' => 'no-store, private',
+        ]);
     }
 }

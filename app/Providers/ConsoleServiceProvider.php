@@ -7,6 +7,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use App\Console\Commands\ArchiveOldServiceRequests;
 use App\Console\Commands\BackfillQueueTokens;
 use App\Console\Commands\ProcessQueueCalls;
+use App\Console\Commands\PurgeGuestAccounts;
 
 class ConsoleServiceProvider extends ServiceProvider
 {
@@ -16,6 +17,7 @@ class ConsoleServiceProvider extends ServiceProvider
             ArchiveOldServiceRequests::class,
             BackfillQueueTokens::class,
             ProcessQueueCalls::class,
+            PurgeGuestAccounts::class,
         ]);
     }
 
@@ -24,6 +26,7 @@ class ConsoleServiceProvider extends ServiceProvider
         $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
             $schedule->command('requests:archive-old')->daily();
             $schedule->command('queue:process-calls')->everyMinute();
+            $schedule->command('guests:purge')->daily();
         });
     }
 }

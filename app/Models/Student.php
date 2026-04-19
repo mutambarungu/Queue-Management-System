@@ -23,6 +23,38 @@ class Student extends Model
         'phone'
     ];
 
+    public static function isGuestNumber(?string $studentNumber): bool
+    {
+        if ($studentNumber === null || $studentNumber === '') {
+            return false;
+        }
+
+        return str_starts_with($studentNumber, 'GUEST-');
+    }
+
+    public function isGuest(): bool
+    {
+        return self::isGuestNumber($this->student_number);
+    }
+
+    public static function formatGuestStudentNumber(int $sequence): string
+    {
+        $sequence = max(1, $sequence);
+        return 'GUEST-' . str_pad((string) $sequence, 3, '0', STR_PAD_LEFT);
+    }
+
+    public static function nextGuestSequenceNumber(): int
+    {
+        $max = self::query()
+            ->where('student_number', 'like', 'GUEST-%')
+            ->where('student_number', 'not like', 'GUEST-%-%')
+            ->selectRaw('MAX(CAST(SUBSTR(student_number, 7) AS INTEGER)) as max_num')
+            ->value('max_num');
+
+        $next = ((int) $max) + 1;
+        return max(1, $next);
+    }
+
     private static function generateStudentNumber(): string
     {
         $year = date('Y');

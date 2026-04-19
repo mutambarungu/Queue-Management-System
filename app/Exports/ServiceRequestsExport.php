@@ -80,7 +80,8 @@ class ServiceRequestsExport implements FromCollection, WithHeadings, ShouldAutoS
         if ($this->reportType === 'queue') {
             return [
                 'Token',
-                'Student ID',
+                'Type',
+                'ID',
                 'Office',
                 'Service',
                 'Mode',
@@ -159,6 +160,19 @@ class ServiceRequestsExport implements FromCollection, WithHeadings, ShouldAutoS
             ->when($this->request->filled('status'), fn ($q) => $q->where('status', $this->request->status))
             ->when($this->request->filled('request_mode'), fn ($q) => $q->where('request_mode', $this->request->request_mode))
             ->when($this->request->filled('queue_stage'), fn ($q) => $q->where('queue_stage', $this->request->queue_stage))
+            ->when($this->request->filled('requester_type'), function ($q) {
+                if ($this->request->requester_type === 'guest') {
+                    $q->where('student_id', 'like', 'GUEST-%');
+                    return;
+                }
+
+                if ($this->request->requester_type === 'student') {
+                    $q->where(function ($studentQuery) {
+                        $studentQuery->whereNull('student_id')
+                            ->orWhere('student_id', 'not like', 'GUEST-%');
+                    });
+                }
+            })
             ->when($this->request->filled('from'), fn ($q) => $q->whereDate('created_at', '>=', $this->request->from))
             ->when($this->request->filled('to'), fn ($q) => $q->whereDate('created_at', '<=', $this->request->to))
             ->latest('created_at')
@@ -166,7 +180,8 @@ class ServiceRequestsExport implements FromCollection, WithHeadings, ShouldAutoS
             ->map(function (ServiceRequest $row) {
                 return [
                     $row->token_code,
-                    $row->student_id ?? 'Guest',
+                    $row->requester_type,
+                    $row->student_report_id,
                     optional($row->office)->name ?? 'N/A',
                     optional($row->serviceType)->name ?? 'N/A',
                     strtoupper((string) $row->request_mode),

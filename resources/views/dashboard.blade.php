@@ -751,7 +751,7 @@
                                 {{ trim(($nextAppointment['office_name'] ?? '') . ' · ' . ($nextAppointment['service_name'] ?? ''), ' ·') }}
                             </div>
                             <div class="d-flex flex-wrap gap-2">
-                                <a class="btn btn-outline-primary btn-sm" id="appointment_add_to_calendar" href="#" role="button">Add to Calendar</a>
+                                <a class="btn btn-outline-primary btn-sm" id="appointment_add_to_calendar" href="{{ $nextAppointment['calendar_url'] ?? '#' }}" role="button">Add to Calendar</a>
                                 <a class="btn btn-primary btn-sm" id="appointment_view" href="{{ $nextAppointment['show_url'] ?? '#' }}">View details</a>
                             </div>
                         </div>
@@ -853,7 +853,6 @@
         const initialAppointment = @json($dashboardData['nextAppointment'] ?? null);
         let appointmentCountdownTimer = null;
         let currentAppointmentIso = null;
-        let appointmentCalendarUrl = null;
         let countdownSnapshot = { days: null, hours: null, minutes: null, seconds: null };
 
         const els = {
@@ -1089,59 +1088,6 @@
             }
         }
 
-        function formatCalendarStamp(date) {
-            return date.toISOString().replace(/[-:]/g, '').replace(/\\.\\d{3}Z$/, 'Z');
-        }
-
-        function escapeIcsText(value) {
-            return String(value || '')
-                .replace(/\\/g, '\\\\')
-                .replace(/\n/g, '\\n')
-                .replace(/;/g, '\\;')
-                .replace(/,/g, '\\,');
-        }
-
-        function buildCalendarFile(appointment) {
-            if (!appointment?.iso) return null;
-            const start = new Date(appointment.iso);
-            const end = new Date(start.getTime() + 30 * 60 * 1000);
-            const uid = `uqs-${start.getTime()}-university-queue`;
-            const summaryBase = appointment.title || 'Appointment';
-            const summary = appointment.office_name ? `${summaryBase} @ ${appointment.office_name}` : summaryBase;
-            const location = appointment.location || appointment.office_name || '';
-            const descriptionParts = [];
-            if (appointment.staff_note) descriptionParts.push(`Staff note: ${appointment.staff_note}`);
-            if (appointment.service_name) descriptionParts.push(`Service: ${appointment.service_name}`);
-            if (appointment.office_name) descriptionParts.push(`Office: ${appointment.office_name}`);
-            if (appointment.request_number) descriptionParts.push(`Request: ${appointment.request_number}`);
-            if (appointment.show_url) descriptionParts.push(`Details: ${appointment.show_url}`);
-            const description = descriptionParts.filter(Boolean).join(' | ');
-            const calendarName = appointment.office_name ? `${appointment.office_name} Appointment` : 'University Queue Appointment';
-            const calendarDesc = appointment.service_name ? `${appointment.service_name} appointment` : 'University Queue appointment';
-
-            const lines = [
-                'BEGIN:VCALENDAR',
-                'VERSION:2.0',
-                'PRODID:-//University Queue//EN',
-                'CALSCALE:GREGORIAN',
-                'METHOD:PUBLISH',
-                `X-WR-CALNAME:${escapeIcsText(calendarName)}`,
-                `X-WR-CALDESC:${escapeIcsText(calendarDesc)}`,
-                'BEGIN:VEVENT',
-                `UID:${uid}`,
-                `DTSTAMP:${formatCalendarStamp(new Date())}`,
-                `DTSTART:${formatCalendarStamp(start)}`,
-                `DTEND:${formatCalendarStamp(end)}`,
-                `SUMMARY:${escapeIcsText(summary)}`,
-                `LOCATION:${escapeIcsText(location)}`,
-                `DESCRIPTION:${escapeIcsText(description)}`,
-                ...(appointment.show_url ? [`URL:${escapeIcsText(appointment.show_url)}`] : []),
-                'END:VEVENT',
-                'END:VCALENDAR'
-            ];
-            return new Blob([lines.join('\r\n')], { type: 'text/calendar' });
-        }
-
         function updateAppointmentCountdown(nextAppointment) {
             if (!els.appointmentEmpty || !els.appointmentCountdown) return;
             if (!nextAppointment || !nextAppointment.iso) {
@@ -1155,13 +1101,8 @@
                     els.appointmentMeta.textContent = '';
                 }
                 currentAppointmentIso = null;
-                if (appointmentCalendarUrl) {
-                    URL.revokeObjectURL(appointmentCalendarUrl);
-                    appointmentCalendarUrl = null;
-                }
                 if (els.appointmentAdd) {
                     els.appointmentAdd.removeAttribute('href');
-                    els.appointmentAdd.removeAttribute('download');
                 }
                 if (appointmentCountdownTimer) {
                     clearInterval(appointmentCountdownTimer);
@@ -1195,17 +1136,8 @@
                 if (els.appointmentView && nextAppointment.show_url) {
                     els.appointmentView.setAttribute('href', nextAppointment.show_url);
                 }
-                if (els.appointmentAdd) {
-                    if (appointmentCalendarUrl) {
-                        URL.revokeObjectURL(appointmentCalendarUrl);
-                        appointmentCalendarUrl = null;
-                    }
-                    const file = buildCalendarFile(nextAppointment);
-                    if (file) {
-                        appointmentCalendarUrl = URL.createObjectURL(file);
-                        els.appointmentAdd.setAttribute('href', appointmentCalendarUrl);
-                        els.appointmentAdd.setAttribute('download', 'appointment.ics');
-                    }
+                if (els.appointmentAdd && nextAppointment.calendar_url) {
+                    els.appointmentAdd.setAttribute('href', nextAppointment.calendar_url);
                 }
             }
 

@@ -28,7 +28,8 @@ class StaffQueueReportExport implements FromCollection, WithHeadings, ShouldAuto
             ->map(function (ServiceRequest $request) {
                 return [
                     $request->token_code,
-                    $request->student_id ?? 'Guest',
+                    $request->requester_type,
+                    $request->student_report_id,
                     optional($request->office)->name ?? 'N/A',
                     optional(optional($request->serviceType)->subOffice)->name ?? 'General Queue',
                     optional($request->serviceType)->name ?? 'N/A',
@@ -46,7 +47,8 @@ class StaffQueueReportExport implements FromCollection, WithHeadings, ShouldAuto
     {
         return [
             'Token',
-            'Student ID',
+            'Type',
+            'ID',
             'Office',
             'Lane',
             'Service',
@@ -89,6 +91,17 @@ class StaffQueueReportExport implements FromCollection, WithHeadings, ShouldAuto
             $query->where('queue_stage', $this->request->queue_stage);
         }
 
+        if ($this->request->filled('requester_type')) {
+            if ($this->request->requester_type === 'guest') {
+                $query->where('student_id', 'like', 'GUEST-%');
+            } elseif ($this->request->requester_type === 'student') {
+                $query->where(function ($studentQuery) {
+                    $studentQuery->whereNull('student_id')
+                        ->orWhere('student_id', 'not like', 'GUEST-%');
+                });
+            }
+        }
+
         if ($this->request->filled('from')) {
             $query->whereDate('created_at', '>=', $this->request->from);
         }
@@ -115,6 +128,9 @@ class StaffQueueReportExport implements FromCollection, WithHeadings, ShouldAuto
             })
             ->where(function ($query) use ($staff) {
                 $query->whereDoesntHave('student')
+                    ->orWhereHas('student', function ($studentQuery) {
+                        $studentQuery->where('student_number', 'like', 'GUEST-%');
+                    })
                     ->orWhereHas('student', function ($studentQuery) use ($staff) {
                         if (filled($staff->campus)) {
                             $studentQuery->where('campus', $staff->campus);

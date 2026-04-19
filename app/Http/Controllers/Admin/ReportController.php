@@ -215,6 +215,19 @@ class ReportController extends Controller
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->status))
             ->when($request->filled('request_mode'), fn ($query) => $query->where('request_mode', $request->request_mode))
             ->when($request->filled('queue_stage'), fn ($query) => $query->where('queue_stage', $request->queue_stage))
+            ->when($request->filled('requester_type'), function ($query) use ($request) {
+                if ($request->requester_type === 'guest') {
+                    $query->where('student_id', 'like', 'GUEST-%');
+                    return;
+                }
+
+                if ($request->requester_type === 'student') {
+                    $query->where(function ($studentQuery) {
+                        $studentQuery->whereNull('student_id')
+                            ->orWhere('student_id', 'not like', 'GUEST-%');
+                    });
+                }
+            })
             ->when($request->filled('from'), fn ($query) => $query->whereDate('created_at', '>=', $request->from))
             ->when($request->filled('to'), fn ($query) => $query->whereDate('created_at', '<=', $request->to));
     }
@@ -222,6 +235,9 @@ class ReportController extends Controller
     private function queueSummaryData($query): array
     {
         $total = (clone $query)->count();
+        $guests = (clone $query)
+            ->where('student_id', 'like', 'GUEST-%')
+            ->count();
         $stageCounts = (clone $query)
             ->selectRaw('queue_stage, COUNT(*) as aggregate_count')
             ->groupBy('queue_stage')
@@ -229,6 +245,8 @@ class ReportController extends Controller
 
         return [
             'total' => $total,
+            'guests' => $guests,
+            'students' => max(0, $total - $guests),
             'waiting' => (int) ($stageCounts['waiting'] ?? 0),
             'called' => (int) ($stageCounts['called'] ?? 0),
             'serving' => (int) ($stageCounts['serving'] ?? 0),

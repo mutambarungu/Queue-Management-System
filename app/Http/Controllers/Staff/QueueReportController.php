@@ -105,6 +105,17 @@ class QueueReportController extends Controller
             $query->where('queue_stage', $request->queue_stage);
         }
 
+        if ($request->filled('requester_type')) {
+            if ($request->requester_type === 'guest') {
+                $query->where('student_id', 'like', 'GUEST-%');
+            } elseif ($request->requester_type === 'student') {
+                $query->where(function ($studentQuery) {
+                    $studentQuery->whereNull('student_id')
+                        ->orWhere('student_id', 'not like', 'GUEST-%');
+                });
+            }
+        }
+
         if ($request->filled('from')) {
             $query->whereDate('created_at', '>=', $request->from);
         }
@@ -119,6 +130,9 @@ class QueueReportController extends Controller
     private function summaryData(Builder $query): array
     {
         $total = (clone $query)->count();
+        $guests = (clone $query)
+            ->where('student_id', 'like', 'GUEST-%')
+            ->count();
 
         $stageCounts = (clone $query)
             ->selectRaw('queue_stage, COUNT(*) as aggregate_count')
@@ -139,6 +153,8 @@ class QueueReportController extends Controller
 
         return [
             'total' => $total,
+            'guests' => $guests,
+            'students' => max(0, $total - $guests),
             'waiting' => (int) ($stageCounts['waiting'] ?? 0),
             'called' => (int) ($stageCounts['called'] ?? 0),
             'serving' => (int) ($stageCounts['serving'] ?? 0),
@@ -264,6 +280,9 @@ class QueueReportController extends Controller
             })
             ->where(function ($query) use ($staff) {
                 $query->whereDoesntHave('student')
+                    ->orWhereHas('student', function ($studentQuery) {
+                        $studentQuery->where('student_number', 'like', 'GUEST-%');
+                    })
                     ->orWhereHas('student', function ($studentQuery) use ($staff) {
                         if (filled($staff->campus)) {
                             $studentQuery->where('campus', $staff->campus);

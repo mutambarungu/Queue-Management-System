@@ -20,7 +20,7 @@ class QueueOperationsController extends Controller
             ->whereIn('request_mode', ['walk_in', 'appointment'])
             ->whereNull('archived_at')
             ->where('queue_stage', 'serving')
-            ->orderByRaw('COALESCE(called_at, queued_at, created_at)')
+            ->orderByQueueActivity()
             ->limit(12)
             ->get();
 
@@ -68,7 +68,7 @@ class QueueOperationsController extends Controller
             ->whereIn('request_mode', ['walk_in', 'appointment'])
             ->whereNull('archived_at')
             ->where('queue_stage', 'serving')
-            ->orderByRaw('COALESCE(called_at, queued_at, created_at)')
+            ->orderByQueueActivity()
             ->limit(12)
             ->get()
             ->map(fn (ServiceRequest $row) => [

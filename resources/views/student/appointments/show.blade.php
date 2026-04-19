@@ -24,10 +24,17 @@ $staffNote = $appointment->serviceRequest->replies
             Appointment Details
         </h4>
 
-        <a href="{{ route('student.appointments.index') }}"
-            class="btn btn-secondary p-3">
-            <i class="bi bi-arrow-left"></i> Back to Appointments
-        </a>
+        <div class="d-flex gap-2">
+            <a href="{{ route('student.appointments.calendar', $appointment) }}"
+                class="btn btn-outline-primary p-3">
+                <i class="bi bi-calendar-event me-1"></i> Add to Calendar
+            </a>
+
+            <a href="{{ route('student.appointments.index') }}"
+                class="btn btn-secondary p-3">
+                <i class="bi bi-arrow-left"></i> Back to Appointments
+            </a>
+        </div>
     </div>
 
     <div class="card border-0 shadow-lg rounded-4">

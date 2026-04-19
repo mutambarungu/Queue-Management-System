@@ -70,6 +70,14 @@
             </select>
         </div>
 
+        <div class="col-md-3 d-none" id="requester_type_filter_group">
+            <select name="requester_type" class="form-select">
+                <option value="">All Types</option>
+                <option value="guest" {{ request('requester_type') === 'guest' ? 'selected' : '' }}>Guests Only</option>
+                <option value="student" {{ request('requester_type') === 'student' ? 'selected' : '' }}>Students Only</option>
+            </select>
+        </div>
+
         <div class="col-md-2">
             <input type="date" name="from" class="form-control" value="{{ request('from') }}">
         </div>
@@ -137,16 +145,19 @@
         </table>
     @elseif(($reportType ?? request('report_type', 'office')) === 'queue')
         <div class="row g-gs mb-4">
-            <div class="col-sm-6 col-xl-3">
+            <div class="col-sm-6 col-lg-4 col-xl">
                 <div class="card card-bordered"><div class="card-inner"><div class="text-soft">Total Tokens</div><h3 class="mt-1">{{ number_format($queueSummary['total'] ?? 0) }}</h3></div></div>
             </div>
-            <div class="col-sm-6 col-xl-3">
+            <div class="col-sm-6 col-lg-4 col-xl">
                 <div class="card card-bordered"><div class="card-inner"><div class="text-soft">Waiting / Called</div><h3 class="mt-1">{{ $queueSummary['waiting'] ?? 0 }} / {{ $queueSummary['called'] ?? 0 }}</h3></div></div>
             </div>
-            <div class="col-sm-6 col-xl-3">
+            <div class="col-sm-6 col-lg-4 col-xl">
                 <div class="card card-bordered"><div class="card-inner"><div class="text-soft">Serving / Completed</div><h3 class="mt-1">{{ $queueSummary['serving'] ?? 0 }} / {{ $queueSummary['completed'] ?? 0 }}</h3></div></div>
             </div>
-            <div class="col-sm-6 col-xl-3">
+            <div class="col-sm-6 col-lg-4 col-xl">
+                <div class="card card-bordered"><div class="card-inner"><div class="text-soft">Guests / Students</div><h3 class="mt-1">{{ $queueSummary['guests'] ?? 0 }} / {{ $queueSummary['students'] ?? 0 }}</h3></div></div>
+            </div>
+            <div class="col-sm-6 col-lg-4 col-xl">
                 <div class="card card-bordered"><div class="card-inner"><div class="text-soft">No Show</div><h3 class="mt-1 text-danger">{{ $queueSummary['no_show'] ?? 0 }}</h3></div></div>
             </div>
         </div>
@@ -178,7 +189,8 @@
                             <thead>
                                 <tr>
                                     <th>Token</th>
-                                    <th>Student ID</th>
+                                    <th>Type</th>
+                                    <th>ID</th>
                                     <th>Office</th>
                                     <th>Service</th>
                                     <th>Mode</th>
@@ -192,7 +204,8 @@
                                 @forelse($queueRequests as $queueItem)
                                     <tr>
                                         <td><strong>{{ $queueItem->token_code }}</strong></td>
-                                        <td>{{ $queueItem->student_id ?? 'Guest' }}</td>
+                                        <td>{{ $queueItem->requester_type }}</td>
+                                        <td>{{ $queueItem->student_report_id }}</td>
                                         <td>{{ optional($queueItem->office)->name ?? 'N/A' }}</td>
                                         <td>{{ optional($queueItem->serviceType)->name ?? 'N/A' }}</td>
                                         <td>{{ strtoupper((string) $queueItem->request_mode) }}</td>
@@ -203,7 +216,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="9" class="text-center text-soft">No queue records found for selected filters.</td>
+                                        <td colspan="10" class="text-center text-soft">No queue records found for selected filters.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -278,22 +291,26 @@
         const staffFilter = document.getElementById('staff_filter_group');
         const queueMode = document.getElementById('queue_mode_filter_group');
         const queueStage = document.getElementById('queue_stage_filter_group');
+        const requesterType = document.getElementById('requester_type_filter_group');
 
         if (reportType === 'staff') {
             statusFilter.classList.add('d-none');
             staffFilter.classList.remove('d-none');
             queueMode.classList.add('d-none');
             queueStage.classList.add('d-none');
+            requesterType.classList.add('d-none');
         } else if (reportType === 'queue') {
             statusFilter.classList.remove('d-none');
             staffFilter.classList.add('d-none');
             queueMode.classList.remove('d-none');
             queueStage.classList.remove('d-none');
+            requesterType.classList.remove('d-none');
         } else {
             statusFilter.classList.remove('d-none');
             staffFilter.classList.add('d-none');
             queueMode.classList.add('d-none');
             queueStage.classList.add('d-none');
+            requesterType.classList.add('d-none');
         }
     }
 

@@ -14,8 +14,13 @@
 </head>
 <body>
     <h2>Staff Queue Report</h2>
+    @php
+        $guestCount = $data->filter(fn ($row) => $row->requester_type === 'Guest')->count();
+    @endphp
     <p>
         Office: {{ optional($staff->office)->name ?? 'N/A' }} |
+        Guests: {{ $guestCount }} |
+        Students: {{ max(0, $data->count() - $guestCount) }} |
         Generated: {{ $generatedAt->format('Y-m-d H:i') }}
     </p>
 
@@ -23,7 +28,8 @@
         <thead>
             <tr>
                 <th>Token</th>
-                <th>Student ID</th>
+                <th>Type</th>
+                <th>ID</th>
                 <th>Service</th>
                 <th>Mode</th>
                 <th>Status</th>
@@ -36,7 +42,8 @@
             @forelse($data as $row)
                 <tr>
                     <td>{{ $row->token_code }}</td>
-                    <td>{{ $row->student_id ?? 'Guest' }}</td>
+                    <td>{{ $row->requester_type }}</td>
+                    <td>{{ $row->student_report_id }}</td>
                     <td>{{ optional($row->serviceType)->name ?? 'N/A' }}</td>
                     <td>{{ strtoupper((string) $row->request_mode) }}</td>
                     <td>{{ $row->status }}</td>
@@ -46,7 +53,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="8" style="text-align: center;">No records found.</td>
+                    <td colspan="9" style="text-align: center;">No records found.</td>
                 </tr>
             @endforelse
         </tbody>

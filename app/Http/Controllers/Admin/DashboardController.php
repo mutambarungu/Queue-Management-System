@@ -135,7 +135,7 @@ class DashboardController extends Controller
                 ->whereIn('status', ['Submitted', 'In Review', 'Awaiting Student Response', 'Appointment Scheduled'])
                 ->whereNotIn('queue_stage', ['completed', 'no_show'])
                 ->orderByRaw("FIELD(queue_stage, 'called', 'serving', 'waiting')")
-                ->orderByRaw('COALESCE(called_at, queued_at, created_at)')
+                ->orderByQueueActivity()
                 ->first();
 
             if ($activeQueueRequest) {
@@ -206,6 +206,7 @@ class DashboardController extends Controller
                     'request_number' => $serviceRequest?->request_number,
                     'staff_note' => $staffNote,
                     'show_url' => route('student.appointments.show', $nextAppointmentModel),
+                    'calendar_url' => route('student.appointments.calendar', $nextAppointmentModel),
                 ];
             }
         }

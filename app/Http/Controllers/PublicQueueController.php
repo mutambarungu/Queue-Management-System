@@ -97,7 +97,7 @@ class PublicQueueController extends Controller
                             ->whereHas('appointment', fn ($q) => $q->whereDate('appointment_date', $today));
                     });
             })
-            ->orderByRaw('COALESCE(queued_at, created_at)');
+            ->orderByQueueEntry();
 
         if (filled($limit) && (int) $limit > 0) {
             $query->limit((int) $limit);
@@ -138,13 +138,13 @@ class PublicQueueController extends Controller
                 $current = $this->laneBaseQuery($office->id, $laneSubOfficeId)
                     ->whereIn('queue_stage', ['serving', 'called'])
                     ->orderByRaw("FIELD(queue_stage, 'serving', 'called')")
-                    ->orderByRaw('COALESCE(called_at, queued_at, created_at)')
+                    ->orderByQueueActivity()
                     ->first();
 
                 $called = $this->laneBaseQuery($office->id, $laneSubOfficeId)
                     ->where('queue_stage', 'called')
                     ->when($current, fn ($query) => $query->whereKeyNot($current->id))
-                    ->orderByRaw('COALESCE(called_at, queued_at, created_at)')
+                    ->orderByQueueActivity()
                     ->get()
                     ->values();
 

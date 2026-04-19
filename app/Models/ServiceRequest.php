@@ -106,6 +106,47 @@ class ServiceRequest extends Model
     {
         return $this->belongsTo(Student::class, 'student_id', 'student_number');
     }
+
+    public function getRequesterTypeAttribute(): string
+    {
+        $studentId = (string) ($this->student_id ?? '');
+
+        if ($studentId === '') {
+            return 'Unknown';
+        }
+
+        return Student::isGuestNumber($studentId) ? 'Guest' : 'Student';
+    }
+
+    public function getStudentReportIdAttribute(): string
+    {
+        $studentId = (string) ($this->student_id ?? '');
+
+        if ($studentId === '') {
+            return 'N/A';
+        }
+
+        if (!Student::isGuestNumber($studentId)) {
+            return $studentId;
+        }
+
+        if (preg_match('/^GUEST-\d+$/', $studentId)) {
+            return $studentId;
+        }
+
+        return 'Guest';
+    }
+
+    public function getStudentDisplayAttribute(): string
+    {
+        if ($this->requester_type === 'Guest') {
+            return $this->student_report_id === 'Guest'
+                ? 'Guest'
+                : 'Guest (' . $this->student_report_id . ')';
+        }
+
+        return $this->student_report_id;
+    }
     public function replies()
     {
         return $this->hasMany(ServiceRequestReply::class)->latest();
@@ -156,11 +197,21 @@ class ServiceRequest extends Model
             return 1;
         }
 
+        $anchorValue = $anchorTime instanceof Carbon
+            ? $anchorTime->copy()->format('Y-m-d H:i:s')
+            : (string) $anchorTime;
+
         return $this->laneQueueBaseQuery()
             ->whereNull('archived_at')
             ->whereIn('status', ['Submitted', 'In Review', 'Awaiting Student Response'])
             ->whereNotIn('queue_stage', ['no_show', 'completed'])
-            ->whereRaw('COALESCE(queued_at, created_at) < ?', [$anchorTime])
+            ->where(function (Builder $query) use ($anchorValue) {
+                $query->whereRaw('COALESCE(queued_at, created_at) < ?', [$anchorValue])
+                    ->orWhere(function (Builder $query) use ($anchorValue) {
+                        $query->whereRaw('COALESCE(queued_at, created_at) = ?', [$anchorValue])
+                            ->where('id', '<', (int) $this->getKey());
+                    });
+            })
             ->count() + 1;
     }
 
@@ -179,7 +230,7 @@ class ServiceRequest extends Model
             ->whereNull('archived_at')
             ->whereIn('status', ['Submitted', 'In Review', 'Awaiting Student Response'])
             ->where('queue_stage', 'serving')
-            ->orderByRaw('COALESCE(called_at, queued_at, created_at)')
+            ->orderByQueueActivity()
             ->first();
     }
 
@@ -201,8 +252,26 @@ class ServiceRequest extends Model
             ->where('queue_stage', 'waiting');
 
         return $basePending
-            ->orderByRaw('COALESCE(queued_at, created_at)')
+            ->orderByQueueEntry()
             ->first();
+    }
+
+    public function scopeOrderByQueueEntry(Builder $query, string $direction = 'asc'): Builder
+    {
+        $direction = strtolower($direction) === 'desc' ? 'desc' : 'asc';
+
+        return $query
+            ->orderByRaw("COALESCE(queued_at, created_at) {$direction}")
+            ->orderBy('id', $direction);
+    }
+
+    public function scopeOrderByQueueActivity(Builder $query, string $direction = 'asc'): Builder
+    {
+        $direction = strtolower($direction) === 'desc' ? 'desc' : 'asc';
+
+        return $query
+            ->orderByRaw("COALESCE(called_at, queued_at, created_at) {$direction}")
+            ->orderBy('id', $direction);
     }
 
     public function getQueueStateAttribute()
